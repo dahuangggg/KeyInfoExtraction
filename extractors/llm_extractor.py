@@ -38,6 +38,10 @@ class LLMExtractor(BaseExtractor):
         self.max_tokens = max_tokens
         self.model = None
         
+        # 加载停用词和专有名词
+        self.stopwords = self.load_stopwords()
+        self.proper_nouns = self.load_proper_nouns()
+        
         print(f"初始化LLM模型: {model_name}")
         
         # 如果LangChain可用，尝试加载模型
@@ -85,6 +89,88 @@ class LLMExtractor(BaseExtractor):
                     print("将使用模拟模式...")
         else:
             print("警告: LangChain库不可用，将使用模拟模式")
+    
+    def load_stopwords(self):
+        """加载停用词列表"""
+        stopwords = set()
+        try:
+            stopwords_path = os.path.join("data", "nlp_static", "stopwords.txt")
+            if os.path.exists(stopwords_path):
+                with open(stopwords_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        word = line.strip()
+                        if word:
+                            stopwords.add(word)
+                print(f"成功加载 {len(stopwords)} 个停用词")
+            else:
+                print(f"停用词文件不存在: {stopwords_path}")
+        except Exception as e:
+            print(f"加载停用词失败: {e}")
+        return stopwords
+    
+    def load_proper_nouns(self):
+        """加载专有名词词典"""
+        proper_nouns = set()
+        try:
+            proper_nouns_path = os.path.join("data", "nlp_static", "proper_nouns.txt")
+            if os.path.exists(proper_nouns_path):
+                with open(proper_nouns_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        word = line.strip()
+                        if word:
+                            proper_nouns.add(word)
+                print(f"成功加载 {len(proper_nouns)} 个专有名词")
+            else:
+                print(f"专有名词文件不存在: {proper_nouns_path}")
+        except Exception as e:
+            print(f"加载专有名词失败: {e}")
+        return proper_nouns
+    
+    def preprocess_text(self, text):
+        """
+        预处理文本，包括去除停用词等
+        
+        参数:
+            text: 待处理的文本
+            
+        返回:
+            处理后的文本
+        """
+        # 如果没有加载停用词，直接返回原文本
+        if not self.stopwords:
+            return text
+            
+        # 对于中文文本，需要先进行分词
+        # 这里使用简单的字符级处理
+        processed_chars = []
+        for char in text:
+            if char not in self.stopwords:
+                processed_chars.append(char)
+        
+        return ''.join(processed_chars)
+    
+    def identify_entities(self, text):
+        """
+        识别文本中的实体（如专有名词）
+        
+        参数:
+            text: 待处理的文本
+            
+        返回:
+            识别出的实体列表
+        """
+        entities = []
+        
+        # 如果没有加载专有名词，返回空列表
+        if not self.proper_nouns:
+            return entities
+            
+        # 简单的字符串匹配查找专有名词
+        for noun in self.proper_nouns:
+            if noun in text:
+                entities.append(noun)
+                
+        return entities
     
     def generate_prompt(self, text, section_type):
         """根据章节类型生成不同的提示"""
@@ -148,7 +234,17 @@ class LLMExtractor(BaseExtractor):
     
     def extract_info(self, text, section_type):
         """使用LLM提取信息"""
+        # 预处理文本
+        preprocessed_text = self.preprocess_text(text)
+        
+        # 识别实体
+        entities = self.identify_entities(text)
+        
+        # 生成提示，包含识别出的实体信息
         prompt = self.generate_prompt(text, section_type)
+        if entities:
+            entity_info = "文本中识别出的重要实体: " + ", ".join(entities[:10])  # 限制实体数量
+            prompt = prompt + "\n\n" + entity_info
         
         print(f"发送提示到LLM模型，提取\"{section_type}\"信息")
         

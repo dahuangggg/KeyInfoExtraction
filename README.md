@@ -15,6 +15,15 @@ cd KeyInfoExtraction
 pip install -r requirements.txt
 ```
 
+## 数据文件
+
+项目包含以下数据文件：
+
+- `data/samples/`: 包含示例文本文件，用于测试提取功能
+- `data/nlp_static/`: 包含NLP相关的静态资源文件
+  - `stopwords.txt`: 中文停用词表，用于文本预处理
+  - `proper_nouns.txt`: 专有名词词典，用于实体识别
+
 ## 使用方法
 
 ### 使用LLMExtractor提取信息
