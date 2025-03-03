@@ -57,7 +57,7 @@ class InformationExtractionSystem:
         """格式化输出结果"""
         # 初始化结构化信息
         structured_info = {
-            "元器件物理状态分析树状结构": {}
+            "元器件物理状态分析": []
         }
         
         # 遍历所有章节
@@ -70,15 +70,27 @@ class InformationExtractionSystem:
             # 检查是否存在物理状态组信息
             if "物理状态组" in section_info:
                 # 将物理状态组信息添加到结构化信息中
-                structured_info["元器件物理状态分析树状结构"][section_title] = {
-                    "物理状态组": section_info["物理状态组"]
+                physical_state_group = {
+                    "物理状态组": section_title,
+                    "物理状态项": []
                 }
+                
+                for state in section_info["物理状态组"]:
+                    physical_state_item = {
+                        "物理状态名称": state.get("物理状态名称", ""),
+                        "典型物理状态值": state.get("典型物理状态值", ""),
+                        "禁限用信息": state.get("禁限用信息", "无"),
+                        "测试评语": state.get("测试评语", "")
+                    }
+                    physical_state_group["物理状态项"].append(physical_state_item)
+                
+                structured_info["元器件物理状态分析"].append(physical_state_group)
             else:
                 # 尝试处理旧格式
                 print(f"警告: 章节 {section_title} 的数据格式不符合预期，尝试转换...")
                 
                 # 尝试从旧格式转换
-                physical_states = []
+                physical_state_items = []
                 
                 # 遍历章节信息中的所有键
                 for key, value in section_info.items():
@@ -87,20 +99,22 @@ class InformationExtractionSystem:
                         continue
                     
                     # 构建物理状态
-                    physical_state = {
+                    physical_state_item = {
                         "物理状态名称": key,
                         "典型物理状态值": value.get("值", "文中未提及"),
                         "禁限用信息": value.get("禁限用信息", "无"),
                         "测试评语": value.get("测试评语", "文中未提及")
                     }
                     
-                    physical_states.append(physical_state)
+                    physical_state_items.append(physical_state_item)
                 
                 # 添加到结构化信息
-                if physical_states:
-                    structured_info["元器件物理状态分析树状结构"][section_title] = {
-                        "物理状态组": physical_states
+                if physical_state_items:
+                    physical_state_group = {
+                        "物理状态组": section_title,
+                        "物理状态项": physical_state_items
                     }
+                    structured_info["元器件物理状态分析"].append(physical_state_group)
                 else:
                     print(f"警告: 无法从章节 {section_title} 提取物理状态信息")
         

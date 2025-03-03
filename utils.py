@@ -68,29 +68,53 @@ def save_excel(data, file_path):
     sheets_added = False
     
     # 处理树状结构数据
-    if "元器件物理状态分析树状结构" in data:
-        tree_data = data["元器件物理状态分析树状结构"]
+    if "元器件物理状态分析" in data:
+        physical_state_analysis = data["元器件物理状态分析"]
         
-        # 为每个章节创建一个工作表
-        for section_title, section_data in tree_data.items():
+        # 为每个物理状态组创建一个工作表
+        for group_data in physical_state_analysis:
+            # 获取物理状态组名称
+            section_title = group_data.get("物理状态组", "未知章节")
+            
             # 清理工作表名称（Excel工作表名称有限制）
             sheet_name = section_title[:31].replace('/', '_').replace('\\', '_').replace('?', '_').replace('*', '_').replace('[', '_').replace(']', '_').replace(':', '_')
             
-            # 提取物理状态组数据
-            if "物理状态组" in section_data:
-                physical_states = section_data["物理状态组"]
-                
-                # 将物理状态组转换为树状结构的行数据
+            # 提取物理状态项数据
+            physical_state_items = group_data.get("物理状态项", [])
+            
+            if physical_state_items:
+                # 将物理状态项转换为树状结构的行数据
                 rows = []
-                for state in physical_states:
+                for state in physical_state_items:
                     # 获取物理状态名称和典型物理状态值
                     state_name = state.get("物理状态名称", "")
                     state_value = state.get("典型物理状态值", "")
                     prohibit_info = state.get("禁限用信息", "")
                     test_comment = state.get("测试评语", "")
                     
-                    # 处理典型物理状态值可能是列表的情况
-                    if isinstance(state_value, list):
+                    # 处理典型物理状态值可能是字典或列表的情况
+                    if isinstance(state_value, dict):
+                        # 如果是字典，为每个键值对创建一行
+                        first_row = True
+                        for key, value in state_value.items():
+                            if first_row:
+                                # 第一行包含物理状态名称
+                                rows.append({
+                                    "物理状态名称": state_name,
+                                    "典型物理状态值": f"{key}: {value}",
+                                    "禁限用信息": prohibit_info,
+                                    "测试评语": test_comment
+                                })
+                                first_row = False
+                            else:
+                                # 后续行物理状态名称留空，表示属于同一个物理状态
+                                rows.append({
+                                    "物理状态名称": "",  # 留空表示与上一行同属一个物理状态
+                                    "典型物理状态值": f"{key}: {value}",
+                                    "禁限用信息": "",
+                                    "测试评语": ""
+                                })
+                    elif isinstance(state_value, list):
                         # 如果是列表，为每个值创建一行
                         for i, value in enumerate(state_value):
                             if i == 0:
@@ -110,7 +134,7 @@ def save_excel(data, file_path):
                                     "测试评语": ""
                                 })
                     else:
-                        # 如果不是列表，直接添加一行
+                        # 如果不是字典或列表，直接添加一行
                         rows.append({
                             "物理状态名称": state_name,
                             "典型物理状态值": state_value,
@@ -162,7 +186,7 @@ def save_excel(data, file_path):
         
         # 如果没有找到任何信息，添加一个空行
         if not info_data:
-            info_data = {"信息": ["没有找到可用的树状结构数据"]}
+            info_data = {"信息": ["没有找到可用的物理状态分析数据"]}
         
         # 创建DataFrame并保存到默认工作表
         df = pd.DataFrame(info_data)
