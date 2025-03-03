@@ -41,6 +41,10 @@ class InformationExtractionSystem:
         
         # 遍历所有章节，整合物理状态信息
         for section_title, section_info in results.items():
+            # 忽略附图/附表章节
+            if "附图" in section_title or "附表" in section_title:
+                continue
+                
             if "物理状态组" in section_info:
                 structured_info["元器件物理状态分析树状结构"][section_title] = section_info["物理状态组"]
             else:

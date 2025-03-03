@@ -236,11 +236,11 @@ class LLMExtractor(BaseExtractor):
 2. 键合丝材料与工艺：包括材料、直径、数量、拉力值等
 3. 其他与键合相关的物理状态
 """
-        elif "三、详细分析" in section_type or "详细分析" in section_type:
+        elif "三、详细分析" in section_type or "一、详细分析" in section_type or "二、详细分析" in section_type or "详细分析" in section_type:
             specific_prompt = """
 对于详细分析部分，请综合提取所有相关的物理状态，包括标识、封装、芯片和键合系统等方面的信息。
 """
-        elif "四、附图" in section_type or "附图" in section_type:
+        elif "四、附图" in section_type or "附图" in section_type or "附表" in section_type:
             specific_prompt = """
 对于附图部分，请提取图片描述的物理状态信息，包括图片内容、器件特征等。
 """
@@ -538,7 +538,7 @@ class LLMExtractor(BaseExtractor):
                     }
                 ]
             }
-        elif "三、详细分析" in section_type or "详细分析" in section_type:
+        elif "三、详细分析" in section_type or "一、详细分析" in section_type or "二、详细分析" in section_type or "详细分析" in section_type:
             # 从文本中提取小标题作为物理状态名
             if text:
                 # 使用正则表达式匹配小标题，更精确的匹配模式
@@ -762,7 +762,7 @@ class LLMExtractor(BaseExtractor):
                     }
                 ]
             }
-        elif "四、附图" in section_type or "附图" in section_type:
+        elif "四、附图" in section_type or "附图" in section_type or "附表" in section_type:
             return {
                 "物理状态组": [
                     {
