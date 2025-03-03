@@ -174,63 +174,82 @@ class LLMExtractor(BaseExtractor):
     
     def generate_prompt(self, text, section_type):
         """根据章节类型生成不同的提示"""
-        prompts = {
-            "标识部分": f"""
-从以下文本中提取器件标识相关信息，包括：型号规格、生产批次、生产厂标识、标识方式、
-标识牢固度以及问题与建议。以JSON格式返回。
+        base_prompt = f"""
+请分析以下文本，提取关于{section_type}的关键信息，并按照元器件物理状态分析树状结构进行组织。
+对于每个物理状态组，请提供：物理状态名称、典型物理状态值、禁限用信息、测试评语。
 
 文本内容：
 {text}
-            """,
-            
-            "封装结构": f"""
-从以下文本中提取器件封装结构相关信息，包括：封装类型、封装材料、封装工艺、
-工艺质量评估。以JSON格式返回。
 
-文本内容：
-{text}
-            """,
-            
-            "芯片": f"""
-从以下文本中提取芯片相关信息，包括：芯片装配结构、芯片粘接材料、芯片安装工艺、
-芯片结构和工艺。以JSON格式返回。
+请按照以下格式输出JSON结果：
+{{
+    "物理状态组": [
+        {{
+            "物理状态名称": "名称1",
+            "典型物理状态值": "值1" 或 ["值1", "值2", ...] 或 {{"子属性1": "子值1", "子属性2": "子值2", ...}},
+            "禁限用信息": "有关禁限用的信息，如无则填写'无'",
+            "测试评语": "对该物理状态的测试评价"
+        }},
+        {{
+            "物理状态名称": "名称2",
+            "典型物理状态值": "值2" 或 ["值1", "值2", ...] 或 {{"子属性1": "子值1", "子属性2": "子值2", ...}},
+            "禁限用信息": "有关禁限用的信息，如无则填写'无'",
+            "测试评语": "对该物理状态的测试评价"
+        }},
+        ...
+    ]
+}}
 
-文本内容：
-{text}
-            """,
-            
-            "键合系统": f"""
-从以下文本中提取键合系统相关信息，包括：键合结构、键合丝材料与工艺、
-键合质量评估。以JSON格式返回。
+请确保输出是有效的JSON格式，不要添加任何额外的文本或解释。如果文本中未提及某项信息，请使用"文中未提及"作为值。
+"""
 
-文本内容：
-{text}
-            """,
-            
-            "三、详细分析": f"""
-从以下文本中提取器件的详细分析信息，包括：型号规格、生产批次、生产厂标识、
-封装类型、封装材料、芯片类型、键合信息等。以JSON格式返回。
-
-文本内容：
-{text}
-            """,
-            
-            "四、附图": f"""
-从以下文本中提取附图中可能包含的关键信息，包括：图片描述、图片内容、
-图片中显示的器件特征等。以JSON格式返回。
-
-文本内容：
-{text}
-            """
-        }
+        # 根据不同章节类型添加特定提示
+        if "标识部分" in section_type:
+            specific_prompt = """
+对于标识部分，请特别关注以下物理状态：
+1. 器件标识：包括标识内容（型号规格、生产线标识、生产批号、生产公司标识、生产地）、标识方式（如激光打标、油墨印刷等）
+2. 标识牢固度
+3. 其他与标识相关的物理状态
+"""
+        elif "封装结构" in section_type:
+            specific_prompt = """
+对于封装结构，请特别关注以下物理状态：
+1. 封装类型：如DIP、CQFP、PLCC等
+2. 内部结构：包括内引线、键合丝分布、弓丝弧度等
+3. 封装材料：包括管壳本体、玻璃熔封材料、外键合点区域、管脚基材、管脚表面等
+4. 封装工艺：如玻璃熔封密封工艺等
+5. 其他与封装相关的物理状态
+"""
+        elif "芯片" in section_type:
+            specific_prompt = """
+对于芯片，请特别关注以下物理状态：
+1. 芯片装配结构：如芯片安装位置和方向
+2. 芯片粘接材料：如Ag浆等
+3. 芯片安装工艺：包括玻璃钝化层、芯片表面金属化图形、芯片金属化层表面微观结构等
+4. 芯片结构和工艺：如划片方式等
+5. 其他与芯片相关的物理状态
+"""
+        elif "键合系统" in section_type:
+            specific_prompt = """
+对于键合系统，请特别关注以下物理状态：
+1. 键合结构：包括键合方式、键合点变形、引出端位置等
+2. 键合丝材料与工艺：包括材料、直径、数量、拉力值等
+3. 其他与键合相关的物理状态
+"""
+        elif "三、详细分析" in section_type or "详细分析" in section_type:
+            specific_prompt = """
+对于详细分析部分，请综合提取所有相关的物理状态，包括标识、封装、芯片和键合系统等方面的信息。
+"""
+        elif "四、附图" in section_type or "附图" in section_type:
+            specific_prompt = """
+对于附图部分，请提取图片描述的物理状态信息，包括图片内容、器件特征等。
+"""
+        else:
+            specific_prompt = """
+请提取文本中所有与元器件物理状态相关的信息，并按照物理状态组进行分类。
+"""
         
-        # 获取对应提示，如果没有则使用通用提示
-        return prompts.get(section_type, f"""
-从以下文本中提取关键技术信息，以JSON格式返回。
-
-文本内容：
-{text}
-        """)
+        return base_prompt + specific_prompt
     
     def extract_info(self, text, section_type):
         """使用LLM提取信息"""
@@ -382,140 +401,230 @@ class LLMExtractor(BaseExtractor):
         return output.strip()
     
     def get_mock_data(self, section_type, text=None):
-        """获取模拟数据，如果提供了文本，尝试从文本中提取信息"""
-        # 如果提供了文本，尝试简单提取
-        if text:
-            if "标识部分" in section_type:
-                result = {}
-                # 简单的正则匹配提取
-                type_match = re.search(r'型号规格为(\w+)', text)
-                if type_match:
-                    result["型号规格"] = type_match.group(1)
-                
-                batch_match = re.search(r'生产批次为([\w-]+)', text)
-                if batch_match:
-                    result["生产批次"] = batch_match.group(1)
-                
-                manufacturer_match = re.search(r'生产厂标识为([\w\s]+)[。，]', text)
-                if manufacturer_match:
-                    result["生产厂标识"] = manufacturer_match.group(1).strip()
-                
-                mark_method_match = re.search(r'标识采用(\w+)方式', text)
-                if mark_method_match:
-                    result["标识方式"] = mark_method_match.group(1)
-                
-                firmness_match = re.search(r'标识牢固度(\w+)', text)
-                if firmness_match:
-                    result["标识牢固度"] = firmness_match.group(1)
-                
-                # 提取问题与建议
-                problems = []
-                for problem in re.finditer(r'[：:](缺少[^，。]+|建议[^，。]+)[，。]', text):
-                    problems.append(problem.group(1))
-                
-                if problems:
-                    result["问题与建议"] = problems
-                
-                # 如果提取到了信息，返回结果
-                if result:
-                    return result
-            
-            elif "封装结构" in section_type:
-                result = {}
-                # 提取封装类型
-                package_match = re.search(r'采用(\w+\d+\w+)封装', text)
-                if package_match:
-                    result["封装类型"] = package_match.group(1)
-                
-                # 提取封装材料
-                materials = []
-                materials_match = re.search(r'封装材料[主要]*包括([\w\s、/]+)[。，]', text)
-                if materials_match:
-                    materials_text = materials_match.group(1)
-                    materials = [m.strip() for m in re.split(r'[、和]', materials_text) if m.strip()]
-                
-                if materials:
-                    result["封装材料"] = materials
-                
-                # 提取封装工艺
-                process_match = re.search(r'封装工艺采用([\w]+工艺)', text)
-                if process_match:
-                    result["封装工艺"] = process_match.group(1)
-                
-                # 提取质量评估
-                quality_match = re.search(r'质量评估[为是]([\w]+)', text)
-                if quality_match:
-                    result["质量评估"] = quality_match.group(1)
-                
-                # 如果提取到了信息，返回结果
-                if result:
-                    return result
-            
-            elif "芯片" in section_type:
-                result = {}
-                # 提取芯片装配结构
-                structure_match = re.search(r'芯片装配结构为([\w]+结构)', text)
-                if structure_match:
-                    result["芯片装配结构"] = structure_match.group(1)
-                
-                # 提取芯片粘接材料
-                material_match = re.search(r'芯片粘接材料为([\w]+)', text)
-                if material_match:
-                    result["芯片粘接材料"] = material_match.group(1)
-                
-                # 提取芯片安装工艺
-                process_match = re.search(r'芯片安装工艺采用([\w]+工艺)', text)
-                if process_match:
-                    result["芯片安装工艺"] = process_match.group(1)
-                
-                # 提取芯片结构和工艺
-                tech_match = re.search(r'芯片结构采用([\w]+工艺)', text)
-                if tech_match:
-                    result["芯片结构和工艺"] = tech_match.group(1)
-                
-                # 如果提取到了信息，返回结果
-                if result:
-                    return result
+        """
+        获取模拟数据（当LLM不可用时使用）
         
-        # 如果没有提供文本或提取失败，返回默认模拟数据
-        if "标识部分" in section_type:
-            return {
-                "型号规格": "9288RH",
-                "生产批次": "1440",
-                "生产厂标识": "B",
-                "标识方式": "油墨印刷",
-                "标识牢固度": "良好",
-                "问题与建议": ["缺少静电敏感度标识信息", "建议在管壳正面增加管脚定位标识"]
-            }
-        elif "封装结构" in section_type:
-            return {
-                "封装类型": "CQFP48陶瓷封装",
-                "封装材料": ["Au/Sn合金", "Fe/Ni合金", "CuAg焊料"],
-                "封装工艺": "焊料环熔封密封工艺",
-                "质量评估": "良好"
-            }
-        elif "三、详细分析" in section_type:
-            return {
-                "型号规格": "XC9536",
-                "生产批次": "2023-A",
-                "生产厂标识": "XilinxCorp",
-                "封装类型": "PLCC44",
-                "封装材料": ["环氧树脂", "铜引线框架"],
-                "芯片类型": "CPLD",
-                "芯片工艺": "CMOS工艺",
-                "键合方式": "金线键合",
-                "问题与建议": ["封装表面有轻微划痕", "建议改进标识清晰度"]
-            }
-        elif "四、附图" in section_type:
-            return {
-                "图片描述": "器件内部结构X射线照片",
-                "图片内容": "显示了芯片、引线框架和键合连接",
-                "器件特征": "可见芯片尺寸约为5mm×5mm，键合丝直径约为25μm",
-                "问题与建议": ["建议提供更高分辨率的芯片表面照片"]
-            }
+        参数:
+            section_type: 章节类型
+            text: 原始文本，用于正则表达式提取
         
-        # 返回通用模拟数据
-        return {"extracted_info": "模拟LLM提取结果"}
+        返回:
+            模拟的提取结果
+        """
+        if section_type == "标识部分":
+            # 使用正则表达式从文本中提取信息
+            model_match = re.search(r'型号规格[为是：:]\s*([^\s,，。；;]+)', text) if text else None
+            batch_match = re.search(r'生产批次[为是：:]\s*([^\s,，。；;]+)', text) if text else None
+            manufacturer_match = re.search(r'生产厂标识[为是：:]\s*([^\s,，。；;]+)', text) if text else None
+            method_match = re.search(r'标识[采用方式为是：:]\s*([^，。；;]+)', text) if text else None
+            durability_match = re.search(r'标识牢固度[为是：:]\s*([^，。；;]+)', text) if text else None
+            issue_match = re.search(r'(存在的问题|问题与建议)[：:]\s*([^。]+)', text) if text else None
+            
+            model = model_match.group(1) if model_match else "9288RH"
+            batch = batch_match.group(1) if batch_match else "1440"
+            manufacturer = manufacturer_match.group(1) if manufacturer_match else "B"
+            method = method_match.group(1) if method_match else "油墨印刷"
+            durability = durability_match.group(1) if durability_match else "良好"
+            issues = issue_match.group(2) if issue_match else "在管壳正面增加管脚定位标识, 缺少静电敏感度标识信息，建议在管壳正面增加管脚定位标识, 静电敏感度标识信息"
+            
+            return {
+                "物理状态组": [
+                    {
+                        "物理状态名称": "器件标识",
+                        "典型物理状态值": {
+                            "型号规格": model,
+                            "生产批次": batch,
+                            "生产厂标识": manufacturer,
+                            "标识方式": method,
+                            "标识牢固度": durability
+                        },
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "标识清晰可靠，符合要求"
+                    }
+                ]
+            }
+        elif section_type == "封装结构":
+            # 使用正则表达式从文本中提取信息
+            type_match = re.search(r'采用([^，。；;]+)封装', text) if text else None
+            material_match = re.search(r'封装材料包括([^。]+)', text) if text else None
+            process_match = re.search(r'封装工艺为([^，。；;]+)', text) if text else None
+            quality_match = re.search(r'质量评估为([^，。；;]+)', text) if text else None
+            
+            package_type = type_match.group(1) if type_match else "CQFP48陶瓷封"
+            materials = material_match.group(1) if material_match else "括Au/Sn合金, Fe/Ni合金, CuAg焊料"
+            process = process_match.group(1) if process_match else "焊料环熔封密封工艺"
+            quality = quality_match.group(1) if quality_match else "良好"
+            
+            return {
+                "物理状态组": [
+                    {
+                        "物理状态名称": "封装类型",
+                        "典型物理状态值": package_type,
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "封装结构合理，符合要求"
+                    },
+                    {
+                        "物理状态名称": "内部结构",
+                        "典型物理状态值": "多层陶瓷结构",
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "内部结构稳定，符合要求"
+                    },
+                    {
+                        "物理状态名称": "封装材料",
+                        "典型物理状态值": materials,
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "材料选择合理，符合要求"
+                    },
+                    {
+                        "物理状态名称": "封装工艺",
+                        "典型物理状态值": process,
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "工艺成熟可靠，符合要求"
+                    }
+                ]
+            }
+        elif section_type == "芯片":
+            # 使用正则表达式从文本中提取信息
+            structure_match = re.search(r'芯片装配结构为([^，。；;]+)', text) if text else None
+            material_match = re.search(r'芯片粘接材料为([^，。；;]+)', text) if text else None
+            process_match = re.search(r'芯片安装工艺([^，。；;]+)', text) if text else None
+            tech_match = re.search(r'芯片结构和工艺为([^，。；;]+)', text) if text else None
+            
+            structure = structure_match.group(1) if structure_match else "单芯片结构"
+            material = material_match.group(1) if material_match else "银胶"
+            process = process_match.group(1) if process_match else "用自动化贴片工艺"
+            tech = tech_match.group(1) if tech_match else "CMOS工艺"
+            
+            return {
+                "物理状态组": [
+                    {
+                        "物理状态名称": "芯片装配结构",
+                        "典型物理状态值": structure,
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "装配结构合理，符合要求"
+                    },
+                    {
+                        "物理状态名称": "芯片粘接材料",
+                        "典型物理状态值": material,
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "粘接材料可靠，符合要求"
+                    },
+                    {
+                        "物理状态名称": "芯片安装工艺",
+                        "典型物理状态值": process,
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "安装工艺成熟，符合要求"
+                    },
+                    {
+                        "物理状态名称": "芯片结构和工艺",
+                        "典型物理状态值": tech,
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "结构工艺先进，符合要求"
+                    }
+                ]
+            }
+        elif "键合系统" in section_type:
+            return {
+                "物理状态组": [
+                    {
+                        "物理状态名称": "键合结构",
+                        "典型物理状态值": {
+                            "键合方式": "直径30μm铝丝超声楔形焊键合",
+                            "键合点变形": "正常",
+                            "Al丝引出端": "居于键合点正中"
+                        },
+                        "禁限用信息": "无",
+                        "测试评语": "结构合理"
+                    },
+                    {
+                        "物理状态名称": "键合丝材料与工艺",
+                        "典型物理状态值": {
+                            "材料": "Al丝",
+                            "直径": "30μm",
+                            "数量": "29根",
+                            "最小拉力值": "4.438g",
+                            "最大拉力值": "6.016g",
+                            "标准差": "0.662g"
+                        },
+                        "禁限用信息": "无",
+                        "测试评语": "键合拉力值正常，均未出现脱键等异常现象；键合丝弓丝弧度正常，内外键合点形变正常，大小一致；键合拉力测试数据合格，远大于合格判据1.8g；键合强度具有较好的一致性和较大的裕度"
+                    }
+                ]
+            }
+        elif "三、详细分析" in section_type or "详细分析" in section_type:
+            return {
+                "物理状态组": [
+                    {
+                        "物理状态名称": "器件标识",
+                        "典型物理状态值": {
+                            "标识方式": "激光打标",
+                            "标识内容": {
+                                "型号规格": "XC9536",
+                                "生产批次": "2023-A",
+                                "生产厂标识": "XilinxCorp"
+                            }
+                        },
+                        "禁限用信息": "无",
+                        "测试评语": "标识清晰度有待改进"
+                    },
+                    {
+                        "物理状态名称": "封装类型",
+                        "典型物理状态值": "PLCC44",
+                        "禁限用信息": "无",
+                        "测试评语": "封装表面有轻微划痕"
+                    },
+                    {
+                        "物理状态名称": "封装材料",
+                        "典型物理状态值": ["环氧树脂", "铜引线框架"],
+                        "禁限用信息": "无",
+                        "测试评语": "材料选用合理"
+                    },
+                    {
+                        "物理状态名称": "芯片类型",
+                        "典型物理状态值": "CPLD",
+                        "禁限用信息": "无",
+                        "测试评语": "符合产品规格要求"
+                    },
+                    {
+                        "物理状态名称": "芯片工艺",
+                        "典型物理状态值": "CMOS工艺",
+                        "禁限用信息": "无",
+                        "测试评语": "工艺成熟可靠"
+                    },
+                    {
+                        "物理状态名称": "键合方式",
+                        "典型物理状态值": "金线键合",
+                        "禁限用信息": "无",
+                        "测试评语": "键合质量良好"
+                    }
+                ]
+            }
+        elif "四、附图" in section_type or "附图" in section_type:
+            return {
+                "物理状态组": [
+                    {
+                        "物理状态名称": "X射线照片",
+                        "典型物理状态值": {
+                            "图片描述": "器件内部结构X射线照片",
+                            "图片内容": "显示了芯片、引线框架和键合连接",
+                            "器件特征": "可见芯片尺寸约为5mm×5mm，键合丝直径约为25μm"
+                        },
+                        "禁限用信息": "无",
+                        "测试评语": "建议提供更高分辨率的芯片表面照片"
+                    }
+                ]
+            }
+        else:
+            return {
+                "物理状态组": [
+                    {
+                        "物理状态名称": "文中未提及",
+                        "典型物理状态值": "文中未提及",
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "文中未提及"
+                    }
+                ]
+            }
     
     def optimize_result(self, result, text):
         """

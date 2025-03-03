@@ -33,8 +33,7 @@ def test_extraction(api_key, model_name="gpt-3.5-turbo", section_type="标识部
     result = extractor.extract_info(sample_text, section_type)
     
     # 打印结果
-    print("\n提取结果:")
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    print_extraction_result(result)
     
     # 评分
     score_info = extractor.score_extraction_result(result, sample_text)
@@ -73,8 +72,7 @@ def test_ensemble_extraction(api_key, section_type="标识部分"):
     result = extractor.extract_info_ensemble(sample_text, section_type, models=models)
     
     # 打印结果
-    print("\n集成提取结果:")
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    print_extraction_result(result)
     
     return result
 
@@ -108,10 +106,49 @@ def test_async_extraction(api_key, model_name="gpt-3.5-turbo", section_type="芯
     result = asyncio.run(extractor.extract_info_async(sample_text, section_type))
     
     # 打印结果
-    print("\n异步提取结果:")
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    print_extraction_result(result)
     
     return result
+
+def print_extraction_result(result):
+    """
+    打印提取结果
+    
+    参数:
+        result: 提取结果
+    """
+    print("\n提取结果:")
+    if "物理状态组" in result:
+        print("元器件物理状态分析树状结构:")
+        for item in result["物理状态组"]:
+            print(f"\n- 物理状态名称: {item['物理状态名称']}")
+            
+            # 打印典型物理状态值
+            value = item['典型物理状态值']
+            if isinstance(value, dict):
+                print("  典型物理状态值:")
+                for k, v in value.items():
+                    if isinstance(v, dict):
+                        print(f"    {k}:")
+                        for sub_k, sub_v in v.items():
+                            print(f"      {sub_k}: {sub_v}")
+                    else:
+                        print(f"    {k}: {v}")
+            elif isinstance(value, list):
+                print(f"  典型物理状态值: {', '.join(value)}")
+            else:
+                print(f"  典型物理状态值: {value}")
+            
+            # 打印禁限用信息和测试评语
+            print(f"  禁限用信息: {item['禁限用信息']}")
+            print(f"  测试评语: {item['测试评语']}")
+    else:
+        # 兼容旧格式
+        for key, value in result.items():
+            if isinstance(value, list):
+                print(f"{key}: {', '.join(value)}")
+            else:
+                print(f"{key}: {value}")
 
 if __name__ == "__main__":
     # 从环境变量或用户输入获取API密钥

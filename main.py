@@ -36,64 +36,35 @@ class InformationExtractionSystem:
         """格式化输出结果"""
         # 结构化信息
         structured_info = {
-            "器件信息": {
-                "型号": None,
-                "批次": None,
-                "生产厂": None
-            },
-            "封装信息": {},
-            "芯片信息": {},
-            "键合信息": {},
-            "问题与建议": []
+            "元器件物理状态分析树状结构": {}
         }
         
-        # 遍历所有章节，尝试提取有用信息
-        for section, info in results.items():
-            print(f"处理章节结果: {section}")
-            # 如果是字典类型，尝试提取信息
-            if isinstance(info, dict):
-                # 提取问题与建议
-                if "问题与建议" in info:
-                    structured_info["问题与建议"].extend(info["问题与建议"])
+        # 遍历所有章节，整合物理状态信息
+        for section_title, section_info in results.items():
+            if "物理状态组" in section_info:
+                structured_info["元器件物理状态分析树状结构"][section_title] = section_info["物理状态组"]
+            else:
+                # 兼容旧格式
+                print(f"警告: {section_title} 章节数据格式不符合预期，尝试转换")
+                converted_group = []
                 
-                # 提取器件信息
-                if "型号规格" in info:
-                    structured_info["器件信息"]["型号"] = info["型号规格"]
-                if "生产批次" in info:
-                    structured_info["器件信息"]["批次"] = info["生产批次"]
-                if "生产厂标识" in info:
-                    structured_info["器件信息"]["生产厂"] = info["生产厂标识"]
+                # 尝试将旧格式转换为新格式
+                for key, value in section_info.items():
+                    if key == "问题与建议":
+                        continue  # 问题与建议会在其他物理状态中体现
+                        
+                    item = {
+                        "物理状态名称": key,
+                        "典型物理状态值": value,
+                        "禁限用信息": "文中未提及",
+                        "测试评语": "文中未提及"
+                    }
+                    converted_group.append(item)
                 
-                # 提取封装信息
-                if "封装类型" in info or "封装材料" in info or "封装工艺" in info:
-                    for key in ["封装类型", "封装材料", "封装工艺", "质量评估"]:
-                        if key in info:
-                            structured_info["封装信息"][key] = info[key]
-                
-                # 提取芯片信息
-                if "芯片类型" in info or "芯片工艺" in info:
-                    structured_info["芯片信息"]["芯片类型"] = info.get("芯片类型")
-                    structured_info["芯片信息"]["芯片工艺"] = info.get("芯片工艺")
-                
-                # 提取键合信息
-                if "键合方式" in info:
-                    structured_info["键合信息"]["键合方式"] = info.get("键合方式")
-                
-                # 如果是模拟LLM提取结果，尝试从章节标题推断类型
-                if "extracted_info" in info and info["extracted_info"] == "模拟LLM提取结果":
-                    if "详细分析" in section:
-                        # 假设详细分析包含了器件、封装、芯片和键合的信息
-                        # 这里可以添加一些默认值或者从章节文本中提取信息
-                        structured_info["器件信息"]["型号"] = "从详细分析中提取的型号"
-                        structured_info["器件信息"]["批次"] = "从详细分析中提取的批次"
-                        structured_info["器件信息"]["生产厂"] = "从详细分析中提取的生产厂"
-                        structured_info["封装信息"] = {"封装类型": "从详细分析中提取的封装类型"}
-                        structured_info["芯片信息"] = {"芯片类型": "从详细分析中提取的芯片类型"}
-                        structured_info["键合信息"] = {"键合类型": "从详细分析中提取的键合类型"}
-                        structured_info["问题与建议"].append("从详细分析中提取的建议")
+                if converted_group:
+                    structured_info["元器件物理状态分析树状结构"][section_title] = converted_group
         
-        # 过滤空值
-        return filter_empty_values(structured_info)
+        return structured_info
     
     def batch_process(self, directory_path, output_dir="./output"):
         """批量处理目录下的所有文档"""
