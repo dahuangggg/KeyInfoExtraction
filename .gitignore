@@ -51,3 +51,4 @@ test_data/
 *.pdf
 *.json
 !requirements.txt 
+NOTE.md
