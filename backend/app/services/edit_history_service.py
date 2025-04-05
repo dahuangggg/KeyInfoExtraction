@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
+import json
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -13,7 +14,7 @@ class EditHistoryService:
     def __init__(self, db: Session):
         self.db = db
 
-    def record_edit(self, document_id: int, user_id: Optional[int], user_name: str,
+    def record_edit(self, document_id: int,
                    entity_type: str, entity_id: int, field_name: str,
                    old_value: str, new_value: str) -> EditHistory:
         """
@@ -28,8 +29,6 @@ class EditHistoryService:
         edit_history = EditHistory(
             document_id=document_id,
             edit_time=datetime.now(),
-            user_id=user_id,
-            user_name=user_name,
             entity_type=entity_type,
             entity_id=entity_id,
             field_name=field_name,
@@ -51,10 +50,15 @@ class EditHistoryService:
             EditHistory.document_id == document_id
         ).order_by(EditHistory.edit_time.desc()).offset(skip).limit(limit).all()
 
-    def edit_extraction_result(self, document_id: int, user_id: Optional[int], user_name: str,
-                              edit_data: Dict[str, Any]) -> Dict[str, Any]:
+    def edit_extraction_result(self, document_id: int, edit_data: Dict[str, Any], 
+                             extraction_service=None) -> Dict[str, Any]:
         """
         编辑提取结果并记录历史
+        
+        参数:
+            document_id: 文档ID
+            edit_data: 编辑数据
+            extraction_service: 信息提取服务实例
         """
         # 获取提取结果
         extraction_result = self.db.query(ExtractionResult).filter(
@@ -67,71 +71,59 @@ class EditHistoryService:
         # 处理编辑
         if "groups" in edit_data:
             for group_edit in edit_data["groups"]:
-                group_id = group_edit.get("id")
+                group_name = group_edit.get("物理状态组")
                 
                 # 查找物理状态组
                 group = self.db.query(PhysicalStateGroup).filter(
-                    PhysicalStateGroup.id == group_id,
+                    PhysicalStateGroup.group_name == group_name,
                     PhysicalStateGroup.extraction_result_id == extraction_result.id
                 ).first()
                 
+                # 如果组不存在，创建新组
                 if not group:
-                    continue
-                
-                # 编辑组名
-                if "group_name" in group_edit:
-                    old_value = group.group_name
-                    new_value = group_edit["group_name"]
-                    
-                    if old_value != new_value:
-                        # 记录编辑历史
-                        self.record_edit(
-                            document_id=document_id,
-                            user_id=user_id,
-                            user_name=user_name,
-                            entity_type="PhysicalStateGroup",
-                            entity_id=group.id,
-                            field_name="group_name",
-                            old_value=old_value,
-                            new_value=new_value
-                        )
-                        
-                        # 更新值
-                        group.group_name = new_value
+                    group = PhysicalStateGroup(
+                        extraction_result_id=extraction_result.id,
+                        group_name=group_name
+                    )
+                    self.db.add(group)
+                    self.db.flush()  # 获取ID
                 
                 # 处理物理状态项编辑
-                if "items" in group_edit:
-                    for item_edit in group_edit["items"]:
-                        item_id = item_edit.get("id")
+                if "物理状态项" in group_edit:
+                    for item_edit in group_edit["物理状态项"]:
+                        state_name = item_edit.get("物理状态名称")
                         
                         # 查找物理状态项
                         item = self.db.query(PhysicalStateItem).filter(
-                            PhysicalStateItem.id == item_id,
+                            PhysicalStateItem.state_name == state_name,
                             PhysicalStateItem.physical_state_group_id == group.id
                         ).first()
                         
+                        # 如果项不存在，创建新项
                         if not item:
-                            continue
+                            item = PhysicalStateItem(
+                                physical_state_group_id=group.id,
+                                state_name=state_name
+                            )
+                            self.db.add(item)
+                            self.db.flush()  # 获取ID
                         
                         # 编辑字段
                         fields_map = {
-                            "state_name": "物理状态名称",
-                            "state_value": "典型物理状态值",
-                            "prohibition_info": "禁限用信息",
-                            "test_comment": "测试评语"
+                            "典型物理状态值": "state_value",
+                            "禁限用信息": "prohibition_info",
+                            "测试评语": "test_comment"
                         }
                         
-                        for field, display_name in fields_map.items():
-                            if field in item_edit:
+                        for display_name, field in fields_map.items():
+                            if display_name in item_edit:
                                 old_value = getattr(item, field)
-                                new_value = item_edit[field]
+                                new_value = item_edit[display_name]
                                 
                                 if old_value != new_value:
                                     # 记录编辑历史
                                     self.record_edit(
                                         document_id=document_id,
-                                        user_id=user_id,
-                                        user_name=user_name,
                                         entity_type="PhysicalStateItem",
                                         entity_id=item.id,
                                         field_name=display_name,
@@ -146,10 +138,53 @@ class EditHistoryService:
         extraction_result.is_edited = True
         extraction_result.last_edit_time = datetime.now()
         
+        # 重新构建结构化数据，更新result_json字段
+        structured_info = {"元器件物理状态分析": []}
+        
+        # 查询所有物理状态组和项
+        groups = self.db.query(PhysicalStateGroup).filter(
+            PhysicalStateGroup.extraction_result_id == extraction_result.id
+        ).all()
+        
+        for group in groups:
+            group_info = {
+                "物理状态组": group.group_name,
+                "物理状态项": []
+            }
+            
+            items = self.db.query(PhysicalStateItem).filter(
+                PhysicalStateItem.physical_state_group_id == group.id
+            ).all()
+            
+            for item in items:
+                item_info = {
+                    "物理状态名称": item.state_name,
+                    "典型物理状态值": item.state_value,
+                    "禁限用信息": item.prohibition_info or "",
+                    "测试评语": item.test_comment or ""
+                }
+                group_info["物理状态项"].append(item_info)
+            
+            structured_info["元器件物理状态分析"].append(group_info)
+        
+        # 更新result_json字段
+        extraction_result.result_json = json.dumps(structured_info, ensure_ascii=False)
+        
         # 提交更改
         self.db.commit()
         
         # 返回更新后的提取结果
-        from app.services.extraction_service import InformationExtractionService
-        extraction_service = InformationExtractionService(self.db)
-        return extraction_service.get_extraction_result(document_id) 
+        if extraction_service:
+            # 使用传入的提取服务实例
+            return extraction_service.get_extraction_result(document_id)
+        else:
+            # 如果没有传入提取服务实例，尝试创建一个（不推荐，但作为后备方案）
+            from app.services.extraction_service import InformationExtractionService
+            from app.api.deps import get_llm_extractor
+            
+            # 获取 LLMExtractor 单例
+            extractor = get_llm_extractor()
+            
+            # 创建包含数据库会话和提取器的服务实例
+            temp_extraction_service = InformationExtractionService(db=self.db, extractor=extractor)
+            return temp_extraction_service.get_extraction_result(document_id) 

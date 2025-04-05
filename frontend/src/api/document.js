@@ -90,7 +90,39 @@ export const uploadDocument = (file) => {
   const formData = new FormData()
   formData.append('file', file)
   
-  return axios.post('/documents/upload', formData, {
+  return axios.post('/api/v1/documents', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 批量上传多个文档并提取信息
+ * @param {Array<File>} files - 要上传的文件数组
+ * @returns {Promise} - 返回批量上传结果的Promise
+ */
+export const uploadDocuments = (files) => {
+  if (useMockData) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          data: {
+            total: files.length,
+            successful: files.length,
+            documents: [mockData.documents[0]]
+          }
+        })
+      }, 2000)
+    })
+  }
+  
+  const formData = new FormData()
+  files.forEach((file) => {
+    formData.append('files', file)
+  })
+  
+  return axios.post('/api/v1/documents/batch', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }

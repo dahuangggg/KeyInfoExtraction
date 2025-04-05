@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
 
@@ -26,7 +26,7 @@ class DocumentResponse(DocumentBase):
     processing_time: Optional[float] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class DocumentListResponse(BaseModel):
@@ -40,4 +40,14 @@ class DocumentListResponse(BaseModel):
     processing_time: Optional[float] = None
 
     class Config:
-        orm_mode = True 
+        from_attributes = True
+
+
+class BatchUploadResponse(BaseModel):
+    """批量上传响应模式"""
+    total: int  # 上传的总文件数
+    successful: int  # 成功上传的文件数
+    documents: List[DocumentResponse]  # 成功上传的文档列表
+
+    class Config:
+        from_attributes = True 

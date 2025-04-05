@@ -2,18 +2,18 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any
 
 class BaseExtractor(ABC):
-    """提取器基类，定义提取器的通用接口"""
+    """基础信息提取器抽象类"""
     
     @abstractmethod
-    def extract_info(self, text: str, section_type: str) -> Dict[str, Any]:
+    def extract_info(self, text, section_type):
         """
         从文本中提取信息
         
-        Args:
-            text: 待提取的文本
+        参数:
+            text: 要处理的文本
             section_type: 章节类型
             
-        Returns:
-            包含提取信息的字典
+        返回:
+            提取的信息
         """
         pass 

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.api import api_router
 from app.core.config import settings
@@ -50,7 +51,7 @@ def read_root():
 def health_check(db: Session = Depends(get_db)):
     try:
         # 尝试执行一个简单的数据库查询
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
         return {"status": "unhealthy", "database": f"error: {str(e)}"} 
