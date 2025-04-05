@@ -5,7 +5,7 @@
 # 设置默认参数
 INPUT_DIR="../../train/data/documents"
 FORMAT_JSON="../data_static/format.json"
-API_KEY="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"
+API_KEY="YOUR_API_KEY_HERE"
 MODEL="gpt-3.5-turbo"
 OUTPUT_DIR="batch_results"
 FILE_PATTERN="*.docx"
