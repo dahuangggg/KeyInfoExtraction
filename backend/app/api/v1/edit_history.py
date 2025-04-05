@@ -34,8 +34,6 @@ def get_document_edit_history(
                 "id": item.id,
                 "document_id": item.document_id,
                 "edit_time": item.edit_time,
-                "user_id": item.user_id,
-                "user_name": item.user_name,
                 "entity_type": item.entity_type,
                 "entity_id": item.entity_id,
                 "field_name": item.field_name,

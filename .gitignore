@@ -19,11 +19,17 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.coverage
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
 
 # 虚拟环境
 .env
 venv/
 ENV/
+env/
 
 # IDE
 .idea/
@@ -42,13 +48,53 @@ Thumbs.db
 
 # 项目特定
 output/
-test_convert/
-data/
-Reference/
+uploads/
+*.db
+*.sqlite3
+*.log
+config.env
+
+# 前端构建文件
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# 敏感信息
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# LLM API 密钥（务必确保不上传）
+*api_key*
+*API_KEY*
+
+# 测试文档和文本文件
 test_data/
+test_convert/
 *.docx
 *.doc
 *.pdf
-*.json
-!requirements.txt 
+*.txt
+Reference/
+
+# 测试文件夹和训练数据
+backend/tests/
+train/
+backend/tests/*
+physical_state_test_relation.txt
+physical_states_analysis.txt
+
+# 保留重要文件
+!requirements.txt
+!config/format.json
+!config/terminology.txt
+!README.txt
+!README.md
+!backend/README.md
+!backend/README.txt
+
 NOTE.md

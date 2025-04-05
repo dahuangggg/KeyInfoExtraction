@@ -1,215 +1,177 @@
-# 关键信息提取系统
+# 专业文档关键要素自动识别和提取系统
 
-本系统使用规则和大型语言模型（LLM）从文本中提取关键信息，专注于元器件物理状态信息的结构化提取。
+基于大型语言模型（LLM）的专业文档关键要素自动识别和提取系统，使用 FastAPI 和 SQLAlchemy 实现的后端，提供了一套完整的文档处理、信息提取和知识库管理方案。
 
-## 安装
+## 功能特性
 
-1. 克隆仓库
+- **文档管理**：支持单个或批量 Word 文档（.doc/.docx）上传、预览和管理
+- **信息提取**：自动提取文档中的关键信息，包括物理状态组、物理状态名称、典型物理状态值、禁限用信息和测试评语
+- **数据编辑与修正**：允许用户修改自动提取的结果，并记录修改历史
+- **知识库构建**：将提取和复核后的数据存入知识库，辅助提取任务
+- **数据导出**：支持将提取结果导出为 Excel 格式，所有物理状态组在一个工作表中，单元格内容居中显示
+
+## 系统架构
+
+系统分为前端和后端两部分：
+
+- **前端**：基于Vue.js构建的用户界面，提供文档上传、结果查看和编辑功能
+- **后端**：基于FastAPI的REST API服务，处理文档提取、数据持久化和知识库管理
+
+系统采用三层架构：
+1. **API 层**：处理 HTTP 请求和响应
+2. **服务层**：实现业务逻辑
+3. **数据层**：管理数据存储和检索
+
+## 技术栈
+
+- **Web 框架**：FastAPI
+- **ORM**：SQLAlchemy
+- **数据库**：SQLite
+- **NLP/LLM**：大语言模型（如GPT）进行信息提取
+
+## 安装与运行
+
+### 环境要求
+
+- Python 3.8+
+- Node.js 14+
+
+### 后端安装
+
 ```bash
+# 克隆仓库
 git clone https://github.com/yourusername/KeyInfoExtraction.git
 cd KeyInfoExtraction
-```
 
-2. 安装依赖
-```bash
+# 安装后端依赖
+cd backend
 pip install -r requirements.txt
+
+# 启动后端服务
+uvicorn app.main:app --reload
 ```
 
-## 数据文件
+### 前端安装
 
-项目包含以下数据文件：
+```bash
+# 进入前端目录
+cd frontend
 
-- `data/samples/`: 包含示例文本文件，用于测试提取功能
-- `data/nlp_static/`: 包含NLP相关的静态资源文件
-  - `stopwords.txt`: 中文停用词表，用于文本预处理
-  - `proper_nouns.txt`: 专有名词词典，用于实体识别
-- `data/labeled_data/`: 包含用于训练自定义模型的标注数据（由训练脚本生成）
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run serve
+```
 
 ## 使用方法
 
-### 使用LLMExtractor提取信息
+### Web界面访问
 
-LLMExtractor支持使用OpenAI API或本地模型提取信息。
+启动前后端服务后，访问：
+- 前端界面：http://localhost:8080
+- API文档：http://localhost:8000/docs
 
-#### 基本用法
+### 命令行工具
 
-```python
-from extractors.llm_extractor import LLMExtractor
-
-# 使用OpenAI API
-extractor = LLMExtractor(
-    model_name="gpt-3.5-turbo",
-    use_api=True,
-    api_key="your_api_key"
-)
-
-# 提取信息
-text = "标识部分：器件型号规格为XC9536，生产批次为2023-A..."
-result = extractor.extract_info(text, "标识部分")
-print(result)
-```
-
-#### 多模型集成
-
-```python
-# 使用多个模型集成提取
-models = ["gpt-3.5-turbo", "gpt-4"]
-result = extractor.extract_info_ensemble(text, "标识部分", models=models)
-```
-
-#### 异步提取
-
-```python
-import asyncio
-
-# 异步提取
-result = asyncio.run(extractor.extract_info_async(text, "标识部分"))
-```
-
-### 使用命令行工具
-
-#### 处理单个文件
+系统也提供命令行工具，可直接处理文档：
 
 ```bash
-python main.py --file your_file.docx --output output_dir
+# 处理单个文件
+python backend/main.py --cli --file sample.docx
+
+# 批量处理目录内的文档
+python backend/main.py --cli --dir ./documents --format excel
 ```
 
-#### 处理目录中的所有文件
+## API设计
+
+系统采用符合RESTful风格的API设计：
+
+### 核心API端点
+
+- **文档管理**
+  - `POST /api/v1/documents` - 上传一个或多个文档
+  - `GET /api/v1/documents` - 获取文档列表
+  - `GET /api/v1/documents/{document_id}` - 获取文档详情
+  - `DELETE /api/v1/documents/{document_id}` - 删除文档及关联数据
+
+- **信息提取**
+  - `POST /api/v1/extraction` - 创建提取任务
+  - `GET /api/v1/extraction/{document_id}` - 获取提取结果（支持 `?format=xlsx` 参数下载 Excel）
+  - `PUT /api/v1/extraction/{document_id}` - 更新提取结果
+  - `POST /api/v1/extraction/test` - 测试提取功能
+  - `POST /api/v1/extraction/batch` - 批量处理文档
+
+- **知识库（辅助提取）**
+  - `POST /api/v1/knowledge/documents/{document_id}` - 从文档提取结果创建知识库条目
+
+- **编辑历史**
+  - `GET /api/v1/edit-history/{document_id}` - 获取文档的编辑历史
+
+## 配置说明
+
+系统采用双重配置机制，通过`.env`文件和`app/core/config.py`共同管理配置项：
+
+### 主要配置项
+
+- **API 端点前缀**：`API_V1_STR`
+- **数据库连接**：`SQLALCHEMY_DATABASE_URI`
+- **文件上传目录**：`UPLOAD_DIR`
+- **允许的文件类型**：`ALLOWED_EXTENSIONS`
+- **LLM 配置**：
+  - `LLM_MODE`: "api" 或 "server"，可选择使用API密钥或本地服务器
+  - `LLM_API_KEY`: API模式下的密钥
+  - `LLM_MODEL`: 使用的模型名称
+
+## 部署说明
+
+推荐使用Docker部署：
 
 ```bash
-python main.py --dir your_directory --output output_dir
+# 构建并启动服务
+docker-compose up --build
 ```
 
-#### 使用自定义训练的模型
+## 开发指南
+
+### 后端项目结构
+
+```
+backend/                           # 后端项目根目录
+├── app/                           # 应用代码
+│   ├── api/                       # API 路由
+│   ├── core/                      # 核心配置
+│   ├── db/                        # 数据库相关
+│   ├── extractors/                # 信息提取器
+│   ├── models/                    # 数据库模型
+│   ├── schemas/                   # Pydantic 模式
+│   ├── services/                  # 业务服务
+│   ├── utils/                     # 工具函数
+│   └── main.py                    # 应用入口
+├── config/                        # 配置文件目录
+├── output/                        # 输出文件目录
+├── scripts/                       # 脚本文件目录
+├── uploads/                       # 上传文件存储目录
+└── README.md                      # 项目说明文档
+```
+
+### 数据库更新
+
+需要更新数据库结构时，运行：
 
 ```bash
-python main.py --file your_file.docx --output output_dir --use_custom_models
+python backend/scripts/update_db_schema.py
 ```
 
-## 支持的章节类型
+## 贡献指南
 
-- 标识部分
-- 封装结构
-- 芯片
-- 键合系统
-- 三、详细分析
-- 四、附图（会被忽略）
+1. Fork 本仓库
+2. 创建功能分支：`git checkout -b my-new-feature`
+3. 提交更改：`git commit -am 'Add some feature'`
+4. 推送到分支：`git push origin my-new-feature`
+5. 提交 Pull Request
 
-## 自定义模型训练
+## 许可证
 
-本项目支持训练自定义模型来提取元器件物理状态信息，无需依赖外部API。
-
-### 训练脚本目录结构
-
-```
-training_scripts/
-├── prepare_data.py       # 数据准备脚本
-├── train_ner_model.py    # NER模型训练脚本
-├── train_relation_model.py # 关系抽取模型训练脚本
-├── evaluate_models.py    # 模型评估脚本
-└── run_training.sh       # 一键运行脚本
-```
-
-### 训练流程
-
-#### 1. 数据准备
-
-数据准备脚本会从`data`目录中的文档提取文本，并生成用于训练的标注数据：
-
-```bash
-python training_scripts/prepare_data.py
-```
-
-生成的数据将保存在`data/labeled_data`目录下，包括：
-- `ner_training_data.json`: 完整的NER训练数据
-- `ner_train.json`, `ner_dev.json`, `ner_test.json`: 划分后的NER数据集
-- `relation_training_data.json`: 完整的关系抽取训练数据
-- `relation_train.json`, `relation_dev.json`, `relation_test.json`: 划分后的关系抽取数据集
-
-#### 2. 训练NER模型
-
-训练命名实体识别模型，用于识别文本中的物理状态名称、典型物理状态值和禁限用信息：
-
-```bash
-python training_scripts/train_ner_model.py \
-    --train_file data/labeled_data/ner_train.json \
-    --dev_file data/labeled_data/ner_dev.json \
-    --model_name_or_path bert-base-chinese \
-    --output_dir models/ner \
-    --batch_size 8 \
-    --learning_rate 2e-5 \
-    --epochs 3
-```
-
-#### 3. 训练关系抽取模型
-
-训练关系抽取模型，用于识别实体之间的关系：
-
-```bash
-python training_scripts/train_relation_model.py \
-    --train_file data/labeled_data/relation_train.json \
-    --dev_file data/labeled_data/relation_dev.json \
-    --model_name_or_path bert-base-chinese \
-    --output_dir models/relation \
-    --batch_size 8 \
-    --learning_rate 2e-5 \
-    --epochs 3
-```
-
-#### 4. 评估模型
-
-评估训练好的模型在测试集上的性能：
-
-```bash
-python training_scripts/evaluate_models.py \
-    --ner_model_path models/ner \
-    --relation_model_path models/relation \
-    --ner_test_file data/labeled_data/ner_test.json \
-    --relation_test_file data/labeled_data/relation_test.json
-```
-
-#### 5. 在文档上测试
-
-在实际文档上测试模型的提取效果：
-
-```bash
-python training_scripts/evaluate_models.py \
-    --ner_model_path models/ner \
-    --relation_model_path models/relation \
-    --doc_path test.docx
-```
-
-### 一键运行训练流程
-
-可以使用提供的脚本一键完成整个训练和评估流程：
-
-```bash
-bash training_scripts/run_training.sh
-```
-
-### 自定义训练参数
-
-可以通过修改训练脚本中的参数来调整模型性能：
-
-- `--model_name_or_path`: 预训练模型名称或路径，可以使用其他中文预训练模型
-- `--batch_size`: 批次大小，根据GPU内存调整
-- `--learning_rate`: 学习率
-- `--epochs`: 训练轮数
-- `--max_length`: 最大序列长度
-
-### 使用自己的数据
-
-如果要使用自己的数据进行训练，需要：
-
-1. 将文档放入`data`目录
-2. 修改`prepare_data.py`中的实体和关系模式，以适应您的数据特点
-3. 运行训练流程
-
-## 注意事项
-
-1. 使用OpenAI API需要提供有效的API密钥
-2. 如果LangChain库不可用，系统将使用正则表达式提取信息
-3. 提取结果会自动评分，包括完整性和一致性评估
-4. 训练自定义模型需要GPU加速，建议使用具有至少8GB显存的GPU
-5. 首次运行训练脚本时会下载预训练模型，需要稳定的网络连接
-6. 完整训练可能需要几个小时，具体时间取决于数据量和硬件配置 
+本项目采用 MIT 许可证 - 详细内容请参见 [LICENSE](LICENSE) 文件 

@@ -13,6 +13,7 @@
               :on-error="handleUploadError"
               :before-upload="beforeUpload"
               :show-file-list="false"
+              multiple
             >
               <el-icon class="el-icon--upload"><upload-filled /></el-icon>
               <div class="el-upload__text">
@@ -20,7 +21,7 @@
               </div>
               <template #tip>
                 <div class="el-upload__tip">
-                  支持上传 PDF、DOCX、TXT 等格式文件
+                  支持上传 PDF、DOCX、TXT 等格式文件，可同时选择多个文件批量上传
                 </div>
               </template>
             </el-upload>
@@ -112,7 +113,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UploadFilled, Download, Document, Connection } from '@element-plus/icons-vue'
-import { uploadDocument, exportDocumentResult } from '../api/document'
+import { uploadDocument, uploadDocuments, exportDocumentResult } from '../api/document'
 import { useRouter } from 'vue-router'
 import historyService from '../services/history'
 
@@ -198,11 +199,20 @@ const beforeUpload = (file) => {
 }
 
 const customUpload = async (options) => {
-  const { file } = options
+  const { file, fileList } = options
   loading.value = true
   uploadProgress.value = 0
-  loadingText.value = '正在上传文件...'
-  currentFileName.value = file.name
+  
+  // 判断是否为批量上传
+  const isBatchUpload = fileList && fileList.length > 1
+  
+  if (isBatchUpload) {
+    loadingText.value = `正在批量上传 ${fileList.length} 个文件...`
+    currentFileName.value = `${fileList.length} 个文件`
+  } else {
+    loadingText.value = '正在上传文件...'
+    currentFileName.value = file.name
+  }
   
   try {
     // 模拟上传进度
@@ -212,12 +222,23 @@ const customUpload = async (options) => {
       }
     }, 300)
     
-    // 上传文件
-    const response = await uploadDocument(file)
+    let response
+    
+    // 根据是否为批量上传调用不同的API
+    if (isBatchUpload) {
+      response = await uploadDocuments(fileList)
+    } else {
+      response = await uploadDocument(file)
+    }
     
     clearInterval(progressInterval)
     uploadProgress.value = 100
-    loadingText.value = '文件处理完成!'
+    
+    if (isBatchUpload) {
+      loadingText.value = `${response.data.successful}/${response.data.total} 个文件处理完成!`
+    } else {
+      loadingText.value = '文件处理完成!'
+    }
     
     setTimeout(() => {
       loading.value = false
@@ -231,34 +252,91 @@ const customUpload = async (options) => {
 }
 
 const handleUploadSuccess = (response) => {
-  ElMessage.success('文件上传成功')
-  documentData.value = response.data
-  currentDocumentId.value = response.data.id
-  activeTab.value = 'tree'
+  // 判断是否为批量上传响应
+  const isBatchResponse = response.data && response.data.total !== undefined
   
-  // 添加操作记录
-  addOperationHistory({
-    description: `上传文档：${currentFileName.value}`,
-    type: 'success'
-  })
-  
-  // 添加查看树状结构图按钮
-  ElMessageBox.confirm(
-    '文件上传成功，是否查看树状结构图？',
-    '提示',
-    {
-      confirmButtonText: '查看',
-      cancelButtonText: '留在当前页面',
-      type: 'success',
+  if (isBatchResponse) {
+    const { total, successful, documents } = response.data
+    
+    if (successful > 0) {
+      ElMessage.success(`成功上传 ${successful}/${total} 个文件`)
+      
+      // 如果有成功上传的文档，显示第一个文档
+      if (documents && documents.length > 0) {
+        documentData.value = documents[0]
+        currentDocumentId.value = documents[0].id
+        activeTab.value = 'tree'
+        
+        // 添加操作记录
+        addOperationHistory({
+          description: `批量上传文档：成功 ${successful}/${total} 个文件`,
+          type: 'success'
+        })
+        
+        // 如果只有一个文档成功上传，提示是否查看树状图
+        if (successful === 1) {
+          ElMessageBox.confirm(
+            '文件上传成功，是否查看树状结构图？',
+            '提示',
+            {
+              confirmButtonText: '查看',
+              cancelButtonText: '留在当前页面',
+              type: 'success',
+            }
+          )
+            .then(() => {
+              // 跳转到树状结构图页面
+              router.push(`/tree-view/${currentDocumentId.value}`)
+            })
+            .catch(() => {
+              // 用户选择留在当前页面，不做处理
+            })
+        } else {
+          // 多个文档上传成功，提示用户去历史记录查看
+          ElMessageBox.alert(
+            '多个文件上传成功，可在历史记录中查看所有文档',
+            '批量上传完成',
+            {
+              confirmButtonText: '确定',
+              type: 'success',
+            }
+          )
+        }
+      }
+    } else {
+      ElMessage.error('所有文件上传失败，请重试')
     }
-  )
-    .then(() => {
-      // 跳转到树状结构图页面
-      router.push(`/tree-view/${currentDocumentId.value}`)
+  } else {
+    // 单文件上传的处理逻辑（保持原有代码）
+    ElMessage.success('文件上传成功')
+    documentData.value = response.data
+    currentDocumentId.value = response.data.id
+    activeTab.value = 'tree'
+    
+    // 添加操作记录
+    addOperationHistory({
+      description: `上传文档：${currentFileName.value}`,
+      type: 'success'
     })
-    .catch(() => {
-      // 用户选择留在当前页面，不做处理
-    })
+    
+    // 添加查看树状结构图按钮
+    ElMessageBox.confirm(
+      '文件上传成功，是否查看树状结构图？',
+      '提示',
+      {
+        confirmButtonText: '查看',
+        cancelButtonText: '留在当前页面',
+        type: 'success',
+      }
+    )
+      .then(() => {
+        // 跳转到树状结构图页面
+        router.push(`/tree-view/${currentDocumentId.value}`)
+      })
+      .catch(() => {
+        // 用户选择留在当前页面，不做处理
+      })
+  }
 }
 
 const handleUploadError = () => {

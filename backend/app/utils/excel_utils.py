@@ -1,11 +1,13 @@
 import os
 import json
 import pandas as pd
+from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
 from .file_utils import load_json
 
 def save_excel(data, file_path):
     """
-    将树状结构数据保存为Excel文件
+    将树状结构数据保存为Excel文件，所有物理状态组放在一个sheet中
     
     参数:
         data: 树状结构数据
@@ -14,27 +16,29 @@ def save_excel(data, file_path):
     # 创建一个Excel写入器
     writer = pd.ExcelWriter(file_path, engine='openpyxl')
     
-    # 标记是否添加了任何工作表
-    sheets_added = False
+    # 标记是否添加了任何数据
+    data_added = False
     
     # 处理树状结构数据
     if "元器件物理状态分析" in data:
         physical_state_analysis = data["元器件物理状态分析"]
         
-        # 为每个物理状态组创建一个工作表
+        # 收集所有物理状态项
+        all_rows = []
+        
+        # 为每个物理状态组添加行
         for group_data in physical_state_analysis:
             # 获取物理状态组名称
-            section_title = group_data.get("物理状态组", "未知章节")
-            
-            # 清理工作表名称（Excel工作表名称有限制）
-            sheet_name = section_title[:31].replace('/', '_').replace('\\', '_').replace('?', '_').replace('*', '_').replace('[', '_').replace(']', '_').replace(':', '_')
+            group_name = group_data.get("物理状态组", "未知组")
             
             # 提取物理状态项数据
             physical_state_items = group_data.get("物理状态项", [])
             
             if physical_state_items:
-                # 将物理状态项转换为树状结构的行数据
-                rows = []
+                # 记录该组的行数
+                group_start_row = len(all_rows)
+                
+                # 将物理状态项转换为行数据
                 for state in physical_state_items:
                     # 获取物理状态名称和典型物理状态值
                     state_name = state.get("物理状态名称", "")
@@ -47,85 +51,94 @@ def save_excel(data, file_path):
                         # 如果是字典，为每个键值对创建一行
                         first_row = True
                         for key, value in state_value.items():
-                            if first_row:
-                                # 第一行包含物理状态名称
-                                rows.append({
-                                    "物理状态名称": state_name,
-                                    "典型物理状态值": f"{key}: {value}",
-                                    "禁限用信息": prohibit_info,
-                                    "测试评语": test_comment
-                                })
-                                first_row = False
-                            else:
-                                # 后续行物理状态名称留空，表示属于同一个物理状态
-                                rows.append({
-                                    "物理状态名称": "",  # 留空表示与上一行同属一个物理状态
-                                    "典型物理状态值": f"{key}: {value}",
-                                    "禁限用信息": "",
-                                    "测试评语": ""
-                                })
+                            all_rows.append({
+                                "物理状态组": group_name if first_row else "",
+                                "物理状态名称": state_name if first_row else "",
+                                "典型物理状态值": f"{key}: {value}",
+                                "禁限用信息": prohibit_info if first_row else "",
+                                "测试评语": test_comment if first_row else ""
+                            })
+                            first_row = False
                     elif isinstance(state_value, list):
                         # 如果是列表，为每个值创建一行
                         for i, value in enumerate(state_value):
-                            if i == 0:
-                                # 第一行包含物理状态名称
-                                rows.append({
-                                    "物理状态名称": state_name,
-                                    "典型物理状态值": value,
-                                    "禁限用信息": prohibit_info,
-                                    "测试评语": test_comment
-                                })
-                            else:
-                                # 后续行物理状态名称留空，表示属于同一个物理状态
-                                rows.append({
-                                    "物理状态名称": "",  # 留空表示与上一行同属一个物理状态
-                                    "典型物理状态值": value,
-                                    "禁限用信息": "",
-                                    "测试评语": ""
-                                })
+                            all_rows.append({
+                                "物理状态组": group_name if i == 0 else "",
+                                "物理状态名称": state_name if i == 0 else "",
+                                "典型物理状态值": value,
+                                "禁限用信息": prohibit_info if i == 0 else "",
+                                "测试评语": test_comment if i == 0 else ""
+                            })
                     else:
                         # 如果不是字典或列表，直接添加一行
-                        rows.append({
+                        all_rows.append({
+                            "物理状态组": group_name,
                             "物理状态名称": state_name,
                             "典型物理状态值": state_value,
                             "禁限用信息": prohibit_info,
                             "测试评语": test_comment
                         })
+        
+        # 如果收集到了数据，创建单个工作表
+        if all_rows:
+            sheet_name = "物理状态分析"
+            df = pd.DataFrame(all_rows)
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+            data_added = True
+            
+            # 获取工作簿和工作表对象，用于设置格式
+            workbook = writer.book
+            worksheet = writer.sheets[sheet_name]
+            
+            # 设置列宽
+            for col_idx, column in enumerate(df.columns):
+                column_width = max(df[column].astype(str).map(len).max(), len(column)) + 4
+                worksheet.column_dimensions[get_column_letter(col_idx + 1)].width = min(column_width, 40)
+            
+            # 合并相同物理状态组的单元格和相同物理状态名称的单元格
+            current_group = None
+            group_start_row = 2  # Excel行从1开始，标题行是1，数据从2开始
+            
+            current_state = None
+            state_start_row = 2
+            
+            # 对所有行进行处理
+            for i, row in enumerate(all_rows):
+                row_idx = i + 2  # 加2是因为Excel的索引从1开始，而且有标题行
                 
-                # 创建DataFrame并保存到Excel工作表
-                if rows:
-                    df = pd.DataFrame(rows)
-                    df.to_excel(writer, sheet_name=sheet_name, index=False)
-                    sheets_added = True
+                # 处理物理状态组的合并
+                if row["物理状态组"]:  # 如果有物理状态组名称
+                    if current_group and row_idx - group_start_row > 1:
+                        # 合并之前的物理状态组单元格
+                        worksheet.merge_cells(f"A{group_start_row}:A{row_idx-1}")
                     
-                    # 获取工作簿和工作表对象，用于设置格式
-                    workbook = writer.book
-                    worksheet = writer.sheets[sheet_name]
+                    current_group = row["物理状态组"]
+                    group_start_row = row_idx
+                
+                # 处理物理状态名称的合并
+                if row["物理状态名称"]:  # 如果有物理状态名称
+                    if current_state and row_idx - state_start_row > 1:
+                        # 合并之前的物理状态名称单元格
+                        worksheet.merge_cells(f"B{state_start_row}:B{row_idx-1}")
                     
-                    # 合并相同物理状态名称的单元格
-                    current_state_name = None
-                    start_row = 1  # Excel行从1开始，但有标题行，所以数据从2开始
-                    for i, row in enumerate(rows):
-                        row_idx = i + 2  # 加2是因为有标题行和索引从1开始
-                        
-                        if row["物理状态名称"]:
-                            # 如果有新的物理状态名称，处理之前的合并
-                            if current_state_name and row_idx - start_row > 1:
-                                # 合并单元格
-                                cell_range = f"A{start_row}:A{row_idx-1}"
-                                worksheet.merge_cells(cell_range)
-                            
-                            # 更新当前状态和起始行
-                            current_state_name = row["物理状态名称"]
-                            start_row = row_idx
-                    
-                    # 处理最后一组
-                    if current_state_name and len(rows) + 2 - start_row > 1:
-                        cell_range = f"A{start_row}:A{len(rows)+1}"
-                        worksheet.merge_cells(cell_range)
+                    current_state = row["物理状态名称"]
+                    state_start_row = row_idx
+            
+            # 处理最后一组物理状态组和物理状态名称的合并
+            if current_group and len(all_rows) + 2 - group_start_row > 1:
+                worksheet.merge_cells(f"A{group_start_row}:A{len(all_rows)+1}")
+            
+            if current_state and len(all_rows) + 2 - state_start_row > 1:
+                worksheet.merge_cells(f"B{state_start_row}:B{len(all_rows)+1}")
+            
+            # 设置所有单元格内容居中显示
+            center_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            for row in worksheet.iter_rows(min_row=1, max_row=len(all_rows) + 1, min_col=1, max_col=len(df.columns)):
+                for cell in row:
+                    cell.alignment = center_alignment
     
-    # 如果没有添加任何工作表，创建一个默认工作表
-    if not sheets_added:
+    # 如果没有添加任何数据，创建一个默认工作表
+    if not data_added:
         # 尝试从数据中提取一些信息
         info_data = {}
         

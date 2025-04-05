@@ -1,21 +1,30 @@
 # 专业文档关键要素自动识别和提取系统 - 后端
 
-基于神经网络的专业文档关键要素自动识别和提取系统的后端部分，使用 FastAPI 和 SQLAlchemy 实现。
+基于大型语言模型（LLM）的专业文档关键要素自动识别和提取系统的后端部分，使用 FastAPI 和 SQLAlchemy 实现。
 
 ## 功能特性
 
 - **文档管理**：支持单个或批量 Word 文档（.doc/.docx）上传、预览和管理
 - **信息提取**：自动提取文档中的关键信息，包括物理状态组、物理状态名称、典型物理状态值、禁限用信息和测试评语
 - **数据编辑与修正**：允许用户修改自动提取的结果，并记录修改历史
-- **知识库构建**：将提取和复核后的数据存入知识库，支持知识库的管理和查询
-- **数据导出**：支持将提取结果导出为 Excel 格式
+- **知识库构建**：将提取和复核后的数据存入知识库，辅助提取任务
+- **数据导出**：支持将提取结果导出为 Excel 格式，所有物理状态组在一个工作表中，单元格内容居中显示
 
 ## 技术栈
 
 - **Web 框架**：FastAPI
 - **ORM**：SQLAlchemy
-- **数据库**：SQLite（可扩展至 PostgreSQL 等）
-- **NLP/LLM**：结合命名实体识别（NER）和大语言模型（如 GPT 系列）进行信息提取
+- **数据库**：SQLite
+- **NLP/LLM**：命名实体识别（NER）大语言模型（GPT）进行信息提取
+
+## API 设计
+
+系统采用符合 RESTful 风格的 API 设计：
+
+- **资源为中心**：API 路径以资源命名（如 `/documents`、`/extraction`），避免在 URL 中使用动词
+- **HTTP 方法区分操作**：使用 GET、POST、PUT、DELETE 区分对资源的不同操作
+- **内容协商**：通过查询参数指定响应格式（如 `?format=xlsx`）
+- **统一错误处理**：使用标准 HTTP 状态码和详细错误信息
 
 ## 安装与运行
 
@@ -29,35 +38,54 @@
 pip install -r requirements.txt
 ```
 
-### 运行服务器
+### 命令行参数接口
+
+系统支持通过命令行参数进行配置，可通过以下方式查看可用参数：
 
 ```bash
-# API 服务器模式
-python main.py
-
-# 自定义主机和端口
-python main.py --host 127.0.0.1 --port 8080
-
-# 开发模式（启用热重载）
-python main.py --reload
+python backend/main.py --help
 ```
 
-### 命令行模式
+#### 服务器参数
 
-除了 API 服务器模式外，还支持命令行模式直接处理文档：
+```
+--host HOST               # 服务器主机地址，默认为0.0.0.0
+--port PORT               # 服务器端口，默认为8000
+--reload                  # 启用热重载（开发模式）
+```
+
+#### 命令行模式参数
+
+```
+--cli                     # 使用命令行模式而不是API服务器
+--file FILE               # 要处理的单个文件路径
+--dir DIR                 # 要批量处理的目录路径
+--output OUTPUT           # 输出目录，默认为./output
+--format {json,excel,both} # 输出格式，默认为json
+```
+
+#### LLM模型参数
+
+```
+--server_ip SERVER_IP     # LLM服务器IP地址，默认使用settings.LLM_SERVER_IP
+--server_port SERVER_PORT # LLM服务器端口，默认使用settings.LLM_SERVER_PORT
+--model_name MODEL_NAME   # LLM模型名称，默认使用settings.LLM_MODEL
+--api_key API_KEY         # LLM API密钥，默认使用settings.LLM_API_KEY
+--debug                   # 启用调试模式
+--use_local_api           # 使用本地API而不是云API
+```
+
+#### 命令行模式示例
 
 ```bash
-# 处理单个文档
-python main.py --cli --file path/to/document.docx
+# 处理单个文件
+python backend/main.py --cli --file sample.docx
 
-# 批量处理目录中的文档
-python main.py --cli --dir path/to/documents
+# 批量处理目录内的文档并导出为Excel格式
+python backend/main.py --cli --dir ./documents --format excel
 
-# 指定输出格式（json、excel 或 both）
-python main.py --cli --file path/to/document.docx --format excel
-
-# 使用自定义模型
-python main.py --cli --file path/to/document.docx --use_custom_models --ner_model ./models/ner --relation_model ./models/relation
+# 使用自定义LLM服务器
+python backend/main.py --cli --file sample.docx --server_ip 127.0.0.1 --server_port 8080 --model_name gpt-4 --use_local_api
 ```
 
 ## API 文档
@@ -66,6 +94,31 @@ python main.py --cli --file path/to/document.docx --use_custom_models --ner_mode
 
 - Swagger UI：http://localhost:8000/docs
 - ReDoc：http://localhost:8000/redoc
+
+## 核心 API 端点
+
+### 文档管理
+
+- `POST /api/v1/documents` - 上传一个或多个文档
+- `GET /api/v1/documents` - 获取文档列表
+- `GET /api/v1/documents/{document_id}` - 获取文档详情
+- `DELETE /api/v1/documents/{document_id}` - 删除文档及关联数据
+
+### 信息提取
+
+- `POST /api/v1/extraction` - 创建提取任务
+- `GET /api/v1/extraction/{document_id}` - 获取提取结果（支持 `?format=xlsx` 参数下载 Excel）
+- `PUT /api/v1/extraction/{document_id}` - 更新提取结果
+- `POST /api/v1/extraction/test` - 测试提取功能
+- `POST /api/v1/extraction/batch` - 批量处理文档
+
+### 知识库（辅助提取）
+
+- `POST /api/v1/knowledge/documents/{document_id}` - 从文档提取结果创建知识库条目
+
+### 编辑历史
+
+- `GET /api/v1/edit-history/{document_id}` - 获取文档的编辑历史
 
 ## 项目结构
 
@@ -116,88 +169,50 @@ backend/                           # 后端项目根目录
 │   │   ├── excel_utils.py         # Excel 处理工具
 │   │   └── file_utils.py          # 文件处理工具
 │   └── main.py                    # 应用入口
-├── migrations/                    # 数据库迁移
-├── models/                        # 模型存储目录
+├── config/                        # 配置文件目录
+│   ├── format.json                # 格式定义文件
+│   └── terminology.txt            # 术语文件
 ├── output/                        # 输出文件目录
-├── tests/                         # 测试代码
+├── scripts/                       # 脚本文件目录
+│   └── update_db_schema.py        # 数据库结构更新脚本
 ├── uploads/                       # 上传文件存储目录
 ├── .env                           # 环境变量配置
-├── .env.example                   # 环境变量示例
 ├── .gitignore                     # Git 忽略文件
-├── Dockerfile                     # Docker 配置
 ├── README.md                      # 项目说明文档
-├── docker-compose.yml             # Docker Compose 配置
 ├── key_info_extraction.db         # SQLite 数据库文件
-├── main.py                        # 主入口文件
 └── requirements.txt               # 依赖需求
 ```
 
-## 文件说明
+## 配置项说明
 
-### 配置文件
+系统采用双重配置机制，通过`.env`文件和`app/core/config.py`共同管理配置项：
 
-- **requirements.txt**: 列出项目所需的所有 Python 依赖包
-- **.env**: 环境变量配置文件，包含 API 密钥、数据库连接等敏感信息
-- **.env.example**: 环境变量示例文件，用于指导用户如何配置自己的 .env 文件
-- **Dockerfile**: 用于构建 Docker 镜像的配置文件
-- **docker-compose.yml**: 定义和运行多容器 Docker 应用程序的配置文件
+- **`.env`文件**：存储环境相关的变量值，适用于需要在不同环境（开发、测试、生产）中变化的配置。用户可以通过修改此文件来覆盖默认设置，而无需修改代码。
 
-### 核心应用文件
+- **`app/core/config.py`**：定义所有配置项的默认值，通过`Settings`类实现。该类使用`pydantic_settings`库将`.env`文件中的值自动加载并覆盖默认值。
 
-- **main.py**: 项目主入口文件，处理命令行参数和启动服务器
-- **app/main.py**: FastAPI 应用程序的入口点，设置中间件、路由和异常处理
-- **app/core/config.py**: 应用程序配置管理，从环境变量加载设置
+这种设计具有以下优势：
+1. 分离代码和配置，便于环境迁移
+2. 提供默认值，即使无`.env`文件也能正常运行
+3. 支持类型检查，避免配置错误导致的问题
+4. 集中管理所有配置，便于维护
 
-### 数据库相关
+主要配置项包括：
 
-- **app/db/session.py**: 数据库会话管理
-- **app/db/base_class.py**: SQLAlchemy 基础模型类
-- **app/db/base.py**: 导入所有模型以便 Alembic 可以检测到它们
-- **key_info_extraction.db**: SQLite 数据库文件
+- **API 端点前缀**：`API_V1_STR`
+- **数据库连接**：`SQLALCHEMY_DATABASE_URI`
+- **文件上传目录**：`UPLOAD_DIR`
+- **允许的文件类型**：`ALLOWED_EXTENSIONS`
+- **LLM 配置**：
+  - `LLM_MODE`: "api" 或 "server"，分别表示使用 API 密钥或本地服务器
+  - `LLM_API_KEY`: API 模式下的密钥
+  - `LLM_MODEL`: API 模式下使用的模型名称
+  - `LLM_SERVER_IP` 和 `LLM_SERVER_PORT`: 服务器模式下的连接信息
+  - `LLM_SERVER_MODEL`: 服务器模式下使用的模型名称
 
-### 模型和模式
+## 部署说明
 
-- **app/models/**: 包含 SQLAlchemy ORM 模型，定义数据库表结构
-- **app/schemas/**: 包含 Pydantic 模型，用于数据验证和序列化
-
-### API 路由
-
-- **app/api/deps.py**: 依赖注入函数，如获取数据库会话
-- **app/api/v1/**: 包含所有 API 端点的路由处理器
-
-### 业务逻辑
-
-- **app/services/**: 包含业务逻辑服务，处理数据库操作和业务规则
-- **app/extractors/**: 包含信息提取器，负责从文档中提取关键信息
-
-### 工具函数
-
-- **app/utils/**: 包含各种工具函数，如文件处理、数据转换等
-
-## 开发指南
-
-### 数据库迁移
-
-使用 Alembic 进行数据库迁移：
-
-```bash
-# 初始化迁移
-alembic init migrations
-
-# 创建迁移脚本
-alembic revision --autogenerate -m "描述"
-
-# 应用迁移
-alembic upgrade head
-```
-
-### 测试
-
-```bash
-pytest
-```
-
-### Docker 部署
+推荐使用 Docker 部署本系统：
 
 ```bash
 # 构建并启动服务
@@ -208,4 +223,39 @@ docker-compose up
 
 # 在后台运行
 docker-compose up -d
-``` 
+```
+
+## 开发指南
+
+### 数据库结构更新
+
+当需要更新数据库结构时，可以运行：
+
+```bash
+python backend/scripts/update_db_schema.py
+```
+
+### 添加新的提取器
+
+1. 在 `app/extractors` 目录下创建新的提取器类，继承 `BaseExtractor`
+2. 实现 `extract` 和 `extract_from_text` 方法
+3. 在 `app/api/deps.py` 中更新 `get_extraction_service` 依赖
+
+### 前端开发
+
+本系统提供详细的 API 迁移指南，指导前端开发者如何使用最新的 API 端点：`frontend_api_migration_guide.md`。
+
+## 系统架构
+
+系统采用三层架构：
+
+1. **API 层**：处理 HTTP 请求和响应
+2. **服务层**：实现业务逻辑
+3. **数据层**：管理数据存储和检索
+
+其中，关键业务流程是文档提取处理，由以下步骤组成：
+
+1. 文档上传并保存到数据库
+2. 创建提取任务，异步处理文档
+3. LLM 提取器分析文档内容并提取关键信息
+4. 提取结果保存到数据库并可被查询、导出或编辑 

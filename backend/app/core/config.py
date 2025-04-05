@@ -2,7 +2,7 @@ import os
 import secrets
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import AnyHttpUrl, PostgresDsn, field_validator
+from pydantic import AnyHttpUrl, PostgresDsn, field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -10,6 +10,13 @@ class Settings(BaseSettings):
     SECRET_KEY: str = secrets.token_urlsafe(32)
     # 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
+    
+    # 调试模式
+    DEBUG: bool = False
+    
+    # 配置文件路径
+    FORMAT_JSON_PATH: str = "config/format.json"
+    TERMINOLOGY_FILE_PATH: str = "config/terminology.txt"
     
     # CORS配置
     BACKEND_CORS_ORIGINS: List[str] = []
@@ -37,18 +44,15 @@ class Settings(BaseSettings):
     # 输出目录
     OUTPUT_DIR: str = "./output"
     
-    # 模型配置
-    NER_MODEL_PATH: str = "./models/ner"
-    RELATION_MODEL_PATH: str = "./models/relation"
-    USE_CUSTOM_MODELS: bool = False
+    # LLM API配置
+    LLM_MODE: str = "api"  # 可选值: "api" 或 "server"，分别表示使用API密钥或本地服务器
+    LLM_API_KEY: str = "api-key"
+    LLM_MODEL: str = "gpt-3.5-turbo"
+    LLM_SERVER_IP: str = "ip"
+    LLM_SERVER_PORT: str = "port"
+    LLM_SERVER_MODEL: str = "deepseek-r1:32b"
     
-    # OpenAI API配置
-    OPENAI_API_KEY: str = ""
-    OPENAI_MODEL: str = "gpt-3.5-turbo"
-    
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    model_config = ConfigDict(case_sensitive=True, env_file=".env")
 
 # 创建设置实例
 settings = Settings()

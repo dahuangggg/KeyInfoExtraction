@@ -17,7 +17,7 @@ class PhysicalStateItemResponse(PhysicalStateItemBase):
     physical_state_group_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class PhysicalStateGroupBase(BaseModel):
@@ -32,7 +32,7 @@ class PhysicalStateGroupResponse(PhysicalStateGroupBase):
     items: List[PhysicalStateItemResponse] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ExtractionResultBase(BaseModel):
@@ -50,11 +50,9 @@ class ExtractionResultResponse(ExtractionResultBase):
     result_json: Dict[str, Any]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ExtractionResultEdit(BaseModel):
     """提取结果编辑模式"""
-    groups: List[Dict[str, Any]]
-    user_name: str
-    user_id: Optional[int] = None 
+    groups: List[Dict[str, Any]] 

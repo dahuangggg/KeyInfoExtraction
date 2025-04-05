@@ -17,7 +17,7 @@ class DocumentService:
 
     async def upload_document(self, file: UploadFile) -> Document:
         """
-        上传文档并保存到数据库
+        上传单个文档并保存到数据库
         """
         # 检查文件类型
         file_ext = file.filename.split(".")[-1].lower()
@@ -52,6 +52,37 @@ class DocumentService:
 
         return db_document
 
+    async def upload_documents(self, files: List[UploadFile]) -> List[Document]:
+        """
+        批量上传多个文档并保存到数据库
+        
+        参数：
+            files: 要上传的多个文件
+            
+        返回：
+            上传成功的文档列表
+        """
+        if not files:
+            raise HTTPException(status_code=400, detail="未提供任何文件")
+        
+        uploaded_documents = []
+        
+        for file in files:
+            try:
+                # 复用单个文件上传的方法
+                document = await self.upload_document(file)
+                uploaded_documents.append(document)
+            except Exception as e:
+                # 记录错误但继续处理其他文件
+                print(f"上传文件 {file.filename} 时出错: {str(e)}")
+                # 如果希望一个文件失败就中止整个过程，可以在此抛出异常
+                # raise HTTPException(status_code=500, detail=f"上传文件 {file.filename} 时出错: {str(e)}")
+        
+        if not uploaded_documents:
+            raise HTTPException(status_code=500, detail="所有文件上传均失败")
+            
+        return uploaded_documents
+
     def get_document(self, document_id: int) -> Optional[Document]:
         """
         根据ID获取文档
@@ -67,6 +98,13 @@ class DocumentService:
     def mark_document_as_processed(self, document_id: int, processing_time: float) -> Document:
         """
         将文档标记为已处理
+        
+        参数：
+            document_id: 文档ID
+            processing_time: 处理时间（秒）
+        
+        返回：
+            更新后的文档对象
         """
         document = self.get_document(document_id)
         if not document:

@@ -43,6 +43,7 @@ Thumbs.db
 # 项目特定
 uploads/
 output/
+tests/
 *.db
 *.sqlite3
 models/
