@@ -72,17 +72,29 @@ frontend/yarn-error.log*
 *api_key*
 *API_KEY*
 
-# 测试文档
+# 测试文档和文本文件
 test_data/
 test_convert/
 *.docx
 *.doc
 *.pdf
+*.txt
 Reference/
+
+# 测试文件夹和训练数据
+backend/tests/
+train/
+backend/tests/*
+physical_state_test_relation.txt
+physical_states_analysis.txt
 
 # 保留重要文件
 !requirements.txt
 !config/format.json
 !config/terminology.txt
+!README.txt
+!README.md
+!backend/README.md
+!backend/README.txt
 
 NOTE.md
