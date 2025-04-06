@@ -46,7 +46,6 @@ output/
 tests/
 *.db
 *.sqlite3
-models/
 *.docx
 *.doc
 *.pdf
