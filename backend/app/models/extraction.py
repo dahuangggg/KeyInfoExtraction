@@ -54,6 +54,7 @@ class PhysicalStateItem(Base):
     state_value = Column(Text, nullable=True)  # 典型物理状态值
     prohibition_info = Column(Text, nullable=True)  # 禁限用信息
     test_comment = Column(Text, nullable=True)  # 测试评语
+    test_project = Column(Text, nullable=True)  # 试验项目
     
     # 关联物理状态组
     physical_state_group = relationship("PhysicalStateGroup", back_populates="physical_state_items")

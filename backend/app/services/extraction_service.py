@@ -295,7 +295,8 @@ class InformationExtractionService:
                 grouped_results[group_name][state_name] = {
                     "值": item.get("物理状态值", ""),
                     "禁限用信息": item.get("风险评价", "无"),
-                    "测试评语": item.get("测试评语", "")
+                    "测试评语": item.get("测试评语", ""),
+                    "试验项目": item.get("试验项目", "")
                 }
             
             # 继续处理分组后的结果
@@ -310,7 +311,8 @@ class InformationExtractionService:
                         "物理状态名称": state_name,
                         "典型物理状态值": state_info.get("值", ""),
                         "禁限用信息": state_info.get("禁限用信息", "无"),
-                        "测试评语": state_info.get("测试评语", "")
+                        "测试评语": state_info.get("测试评语", ""),
+                        "试验项目": state_info.get("试验项目", "")
                     }
                     group_data["物理状态项"].append(state_data)
                 
@@ -329,7 +331,8 @@ class InformationExtractionService:
                         "物理状态名称": state_name,
                         "典型物理状态值": state_info.get("值", ""),
                         "禁限用信息": state_info.get("禁限用信息", "无"),
-                        "测试评语": state_info.get("测试评语", "")
+                        "测试评语": state_info.get("测试评语", ""),
+                        "试验项目": state_info.get("试验项目", "")
                     }
                     group_data["物理状态项"].append(state_data)
                 
@@ -440,7 +443,8 @@ class InformationExtractionService:
                     state_name=item_info.get("物理状态名称", ""),
                     state_value=state_value,
                     prohibition_info=item_info.get("禁限用信息", ""),
-                    test_comment=item_info.get("测试评语", "")
+                    test_comment=item_info.get("测试评语", ""),
+                    test_project=item_info.get("试验项目", "")
                 )
                 
                 self.db.add(item)
