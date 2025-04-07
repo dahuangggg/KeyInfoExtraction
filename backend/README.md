@@ -14,7 +14,7 @@
 
 - **Web 框架**：FastAPI
 - **ORM**：SQLAlchemy
-- **数据库**：SQLite
+- **数据库**：SQLite/MySQL
 - **NLP/LLM**：命名实体识别（NER）大语言模型（GPT）进行信息提取
 
 ## API 设计
@@ -43,7 +43,7 @@ pip install -r requirements.txt
 系统支持通过命令行参数进行配置，可通过以下方式查看可用参数：
 
 ```bash
-python backend/main.py --help
+python main.py --help
 ```
 
 #### 服务器参数
@@ -187,7 +187,7 @@ backend/                           # 后端项目根目录
 
 系统采用双重配置机制，通过`.env`文件和`app/core/config.py`共同管理配置项：
 
-- **`.env`文件**：存储环境相关的变量值，适用于需要在不同环境（开发、测试、生产）中变化的配置。用户可以通过修改此文件来覆盖默认设置，而无需修改代码。
+- **`.env`文件**：存储环境相关的变量值。通过修改此文件来覆盖默认设置，而无需修改代码。
 
 - **`app/core/config.py`**：定义所有配置项的默认值，通过`Settings`类实现。该类使用`pydantic_settings`库将`.env`文件中的值自动加载并覆盖默认值。
 
@@ -224,26 +224,6 @@ docker-compose up
 # 在后台运行
 docker-compose up -d
 ```
-
-## 开发指南
-
-### 数据库结构更新
-
-当需要更新数据库结构时，可以运行：
-
-```bash
-python backend/scripts/update_db_schema.py
-```
-
-### 添加新的提取器
-
-1. 在 `app/extractors` 目录下创建新的提取器类，继承 `BaseExtractor`
-2. 实现 `extract` 和 `extract_from_text` 方法
-3. 在 `app/api/deps.py` 中更新 `get_extraction_service` 依赖
-
-### 前端开发
-
-本系统提供详细的 API 迁移指南，指导前端开发者如何使用最新的 API 端点：`frontend_api_migration_guide.md`。
 
 ## 系统架构
 

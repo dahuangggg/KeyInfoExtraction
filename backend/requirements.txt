@@ -8,6 +8,8 @@ pydantic>=1.10.7
 # 数据库
 sqlalchemy>=2.0.0
 alembic>=1.10.0  # 数据库迁移工具
+pymysql>=1.1.0  # MySQL驱动
+cryptography>=41.0.0  # MySQL加密支持
 
 # 文档处理
 python-docx>=0.8.11  # 处理docx文件

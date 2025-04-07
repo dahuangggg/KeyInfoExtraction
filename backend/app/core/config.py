@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "KeyInfoExtraction"
     
     # 数据库配置
-    SQLALCHEMY_DATABASE_URI: Optional[str] = "sqlite:///./key_info_extraction.db"
+    SQLALCHEMY_DATABASE_URI: Optional[str] = "mysql+pymysql://root:201982@localhost:3306/key_info_extraction"
     
     # 文件上传配置
     UPLOAD_DIR: str = "./uploads"
