@@ -50,4 +50,9 @@ class BatchUploadResponse(BaseModel):
     documents: List[DocumentResponse]  # 成功上传的文档列表
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+
+class BatchDeleteRequest(BaseModel):
+    """批量删除请求模式"""
+    document_ids: List[int]  # 要删除的文档ID列表 

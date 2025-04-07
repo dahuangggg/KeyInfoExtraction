@@ -164,14 +164,4 @@ backend/                           # 后端项目根目录
 python backend/scripts/update_db_schema.py
 ```
 
-## 贡献指南
 
-1. Fork 本仓库
-2. 创建功能分支：`git checkout -b my-new-feature`
-3. 提交更改：`git commit -am 'Add some feature'`
-4. 推送到分支：`git push origin my-new-feature`
-5. 提交 Pull Request
-
-## 许可证
-
-本项目采用 MIT 许可证 - 详细内容请参见 [LICENSE](LICENSE) 文件 

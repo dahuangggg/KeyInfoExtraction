@@ -1,11 +1,11 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, Body
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db_session
 from app.models.document import Document
 from app.services.document_service import DocumentService
-from app.schemas.document import DocumentResponse, DocumentListResponse, BatchUploadResponse
+from app.schemas.document import DocumentResponse, DocumentListResponse, BatchUploadResponse, BatchDeleteRequest
 
 router = APIRouter()
 
@@ -71,4 +71,20 @@ def delete_document(
     """
     document_service = DocumentService(db)
     success = document_service.delete_document(document_id)
-    return {"success": success} 
+    return {"success": success}
+
+
+@router.delete("/batch/")
+def batch_delete_documents(
+    delete_request: BatchDeleteRequest = Body(...),
+    db: Session = Depends(get_db_session)
+):
+    """
+    批量删除多个文档及其所有关联数据
+    
+    参数:
+        delete_request: 包含要删除的文档ID列表的请求体
+    """
+    document_service = DocumentService(db)
+    result = document_service.batch_delete_documents(delete_request.document_ids)
+    return result 

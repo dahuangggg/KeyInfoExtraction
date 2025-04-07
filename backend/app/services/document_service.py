@@ -131,4 +131,53 @@ class DocumentService:
         # 删除数据库记录（级联删除会处理关联的提取结果和编辑历史）
         self.db.delete(document)
         self.db.commit()
-        return True 
+        return True
+        
+    def batch_delete_documents(self, document_ids: List[int]) -> dict:
+        """
+        批量删除多个文档及其关联数据
+        
+        参数：
+            document_ids: 要删除的文档ID列表
+            
+        返回：
+            包含成功删除数量和失败数量的字典
+        """
+        if not document_ids:
+            raise HTTPException(status_code=400, detail="未提供任何文档ID")
+            
+        success_count = 0
+        failed_count = 0
+        failed_ids = []
+        
+        for doc_id in document_ids:
+            try:
+                document = self.get_document(doc_id)
+                if not document:
+                    failed_count += 1
+                    failed_ids.append(doc_id)
+                    continue
+                    
+                # 删除物理文件
+                if os.path.exists(document.file_path):
+                    os.remove(document.file_path)
+                
+                # 删除数据库记录
+                self.db.delete(document)
+                # 不要在这里commit，等全部处理完一次性提交
+                success_count += 1
+            except Exception as e:
+                failed_count += 1
+                failed_ids.append(doc_id)
+                print(f"删除文档ID {doc_id} 时出错: {str(e)}")
+        
+        # 一次性提交所有更改
+        if success_count > 0:
+            self.db.commit()
+            
+        return {
+            "total": len(document_ids),
+            "success_count": success_count,
+            "failed_count": failed_count,
+            "failed_ids": failed_ids
+        } 

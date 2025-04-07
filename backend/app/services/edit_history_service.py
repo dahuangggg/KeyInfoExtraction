@@ -187,4 +187,133 @@ class EditHistoryService:
             
             # 创建包含数据库会话和提取器的服务实例
             temp_extraction_service = InformationExtractionService(db=self.db, extractor=extractor)
+            return temp_extraction_service.get_extraction_result(document_id)
+
+    def revert_to_history_point(self, document_id: int, history_id: int, 
+                               extraction_service=None) -> Dict[str, Any]:
+        """
+        回溯到特定历史点的文档状态
+        
+        参数:
+            document_id: 文档ID
+            history_id: 编辑历史ID
+            extraction_service: 信息提取服务实例（可选）
+            
+        返回:
+            回溯后的提取结果
+        """
+        # 检查文档是否存在
+        document = self.db.query(Document).filter(Document.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail=f"文档ID {document_id} 不存在")
+            
+        # 获取目标历史记录
+        target_history = self.db.query(EditHistory).filter(
+            EditHistory.id == history_id,
+            EditHistory.document_id == document_id
+        ).first()
+        
+        if not target_history:
+            raise HTTPException(status_code=404, detail=f"历史记录ID {history_id} 不存在或不属于文档 {document_id}")
+            
+        # 获取提取结果
+        extraction_result = self.db.query(ExtractionResult).filter(
+            ExtractionResult.document_id == document_id
+        ).first()
+        
+        if not extraction_result:
+            raise HTTPException(status_code=404, detail=f"文档ID {document_id} 的提取结果不存在")
+            
+        # 获取所有在目标历史记录之后的编辑历史（按时间从最近到最远排序）
+        later_edits = self.db.query(EditHistory).filter(
+            EditHistory.document_id == document_id,
+            EditHistory.edit_time >= target_history.edit_time
+        ).order_by(EditHistory.edit_time.desc()).all()
+        
+        # 对每个编辑记录进行回溯操作
+        for edit in later_edits:
+            # 根据实体类型和ID获取相应的实体
+            if edit.entity_type == "PhysicalStateItem":
+                item = self.db.query(PhysicalStateItem).filter(
+                    PhysicalStateItem.id == edit.entity_id
+                ).first()
+                
+                if item:
+                    # 将字段映射回数据库字段名
+                    field_map = {
+                        "典型物理状态值": "state_value",
+                        "禁限用信息": "prohibition_info",
+                        "测试评语": "test_comment"
+                    }
+                    
+                    db_field = field_map.get(edit.field_name)
+                    if db_field:
+                        # 回溯为旧值
+                        setattr(item, db_field, edit.old_value)
+            
+            # 后续可以添加其他实体类型的回溯逻辑
+        
+        # 标记提取结果为已编辑和回溯状态
+        extraction_result.is_edited = True
+        extraction_result.last_edit_time = datetime.now()
+        
+        # 重新构建结构化数据，更新result_json字段
+        structured_info = {"元器件物理状态分析": []}
+        
+        # 查询所有物理状态组和项
+        groups = self.db.query(PhysicalStateGroup).filter(
+            PhysicalStateGroup.extraction_result_id == extraction_result.id
+        ).all()
+        
+        for group in groups:
+            group_info = {
+                "物理状态组": group.group_name,
+                "物理状态项": []
+            }
+            
+            items = self.db.query(PhysicalStateItem).filter(
+                PhysicalStateItem.physical_state_group_id == group.id
+            ).all()
+            
+            for item in items:
+                item_info = {
+                    "物理状态名称": item.state_name,
+                    "典型物理状态值": item.state_value,
+                    "禁限用信息": item.prohibition_info or "",
+                    "测试评语": item.test_comment or ""
+                }
+                group_info["物理状态项"].append(item_info)
+            
+            structured_info["元器件物理状态分析"].append(group_info)
+        
+        # 更新result_json字段
+        extraction_result.result_json = json.dumps(structured_info, ensure_ascii=False)
+        
+        # 记录回溯操作本身的历史
+        self.record_edit(
+            document_id=document_id,
+            entity_type="System",
+            entity_id=0,
+            field_name="回溯操作",
+            old_value="",
+            new_value=f"回溯到历史点 {history_id}"
+        )
+        
+        # 提交更改
+        self.db.commit()
+        
+        # 返回更新后的提取结果
+        if extraction_service:
+            # 使用传入的提取服务实例
+            return extraction_service.get_extraction_result(document_id)
+        else:
+            # 如果没有传入提取服务实例，尝试创建一个
+            from app.services.extraction_service import InformationExtractionService
+            from app.api.deps import get_llm_extractor
+            
+            # 获取 LLMExtractor 单例
+            extractor = get_llm_extractor()
+            
+            # 创建包含数据库会话和提取器的服务实例
+            temp_extraction_service = InformationExtractionService(db=self.db, extractor=extractor)
             return temp_extraction_service.get_extraction_result(document_id) 

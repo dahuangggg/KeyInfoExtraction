@@ -14,16 +14,23 @@ from app.services.extraction_service import InformationExtractionService
 
 router = APIRouter()
 
-@router.post("/documents/{document_id}", response_model=Dict[str, Any])
+@router.post("/{document_id}", response_model=Dict[str, Any])
 def create_knowledge_from_document(
     document_id: int,
     db: Session = Depends(get_db),
     extraction_service: InformationExtractionService = Depends(get_extraction_service)
 ):
     """
-    从文档提取结果创建知识库条目
+    基于文档ID创建知识库条目
     
-    此接口将解析文档的提取结果，并将其物理状态分析数据导入到知识库中
+    此接口将根据指定文档ID的提取结果，将文档中的物理状态分析数据导入到知识库中。
+    文档必须已经过提取处理并且包含物理状态分析数据。
+    
+    参数:
+        document_id: 要导入到知识库的文档ID
+        
+    返回:
+        导入结果，包含成功导入的条目数量
     """
     knowledge_service = KnowledgeBaseService(db)
     
