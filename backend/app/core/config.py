@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     # LLM API配置
     LLM_MODE: str = "api"  # 可选值: "api" 或 "server"，分别表示使用API密钥或本地服务器
     LLM_API_KEY: str = "api-key"
-    LLM_MODEL: str = "gpt-3.5-turbo"
+    LLM_MODEL: str = "api-model-name"
     LLM_SERVER_IP: str = "ip"
     LLM_SERVER_PORT: str = "port"
     LLM_SERVER_MODEL: str = "deepseek-r1:32b"
