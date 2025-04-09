@@ -15,7 +15,54 @@
 - **Web 框架**：FastAPI
 - **ORM**：SQLAlchemy
 - **数据库**：SQLite/MySQL
-- **NLP/LLM**：命名实体识别（NER）大语言模型（GPT）进行信息提取
+- **NLP/LLM**：命名实体识别（NER）和大语言模型（GPT）进行信息提取
+- **并行处理**：使用concurrent.futures实现多线程处理
+
+## 提取系统架构
+
+系统采用多Agent架构进行文档信息提取，通过分工合作提高提取准确性和灵活性：
+
+### 多Agent提取架构
+
+系统包含四个专业化的Agent：
+
+1. **协调Agent（CoordinatorAgent）**
+   - 负责管理整个提取流程
+   - 组织文档处理过程
+   - 协调各个专业Agent的工作
+   - 处理最终输出格式化
+
+2. **识别Agent（IdentificationAgent）**
+   - 从文档中识别物理状态组和物理状态
+   - 构建初始的物理状态组合列表
+   - 支持规则识别、NER识别和LLM识别
+
+3. **提取Agent（ExtractionAgent）**
+   - 根据识别Agent的结果，提取具体的物理状态值
+   - 提取风险评价和测试评语
+   - 支持批量处理和并行提取
+   - 可按物理状态组分组处理，提高效率
+
+4. **验证Agent（ValidationAgent）**
+   - 验证和优化提取结果
+   - 检查数据一致性和完整性
+   - 应用领域规则进行结果校正
+   - 整合提取结果生成最终输出
+
+### 处理流程
+
+1. 文档上传后，CoordinatorAgent接管整个处理流程
+2. IdentificationAgent首先识别文档中存在的物理状态组和物理状态
+3. ExtractionAgent基于识别结果，从文档中提取具体的物理状态值和附加信息
+4. ValidationAgent验证提取结果的准确性和一致性
+5. CoordinatorAgent整合所有结果并返回最终数据
+
+### 特色功能
+
+- **批量处理**：支持按物理状态组批量处理，提高效率
+- **并行提取**：使用多线程技术并行处理不同的物理状态组
+- **容错机制**：自动填充缺失信息并处理异常情况
+- **可扩展性**：模块化设计使得系统易于扩展和优化
 
 ## API 设计
 
@@ -132,7 +179,7 @@ backend/                           # 后端项目根目录
 │   │       ├── documents.py       # 文档管理 API
 │   │       ├── edit_history.py    # 编辑历史 API
 │   │       ├── extraction.py      # 信息提取 API
-│   │       └── knowledge.py       # 知识库 API
+│   │       └── knowledge_base.py  # 知识库 API
 │   ├── core/                      # 核心配置
 │   │   ├── __init__.py            # 初始化文件
 │   │   └── config.py              # 配置管理
@@ -145,7 +192,15 @@ backend/                           # 后端项目根目录
 │   │   ├── __init__.py            # 初始化文件
 │   │   ├── base_extractor.py      # 基础提取器
 │   │   ├── llm_extractor.py       # 大语言模型提取器
-│   │   └── rule_extractor.py      # 规则提取器
+│   │   ├── llm_service.py         # LLM服务接口
+│   │   ├── rule_extractor.py      # 规则提取器
+│   │   └── multi_agent/           # 多Agent架构
+│   │       ├── __init__.py        # 初始化文件
+│   │       ├── coordinator_agent.py # 协调Agent
+│   │       ├── identification_agent.py # 识别Agent
+│   │       ├── extraction_agent.py # 提取Agent
+│   │       ├── validation_agent.py # 验证Agent
+│   │       └── prompts/           # 提示模板
 │   ├── models/                    # 数据库模型
 │   │   ├── __init__.py            # 初始化文件
 │   │   ├── document.py            # 文档模型
@@ -175,11 +230,13 @@ backend/                           # 后端项目根目录
 ├── output/                        # 输出文件目录
 ├── scripts/                       # 脚本文件目录
 │   └── update_db_schema.py        # 数据库结构更新脚本
+├── tests/                         # 测试目录
 ├── uploads/                       # 上传文件存储目录
 ├── .env                           # 环境变量配置
 ├── .gitignore                     # Git 忽略文件
 ├── README.md                      # 项目说明文档
 ├── key_info_extraction.db         # SQLite 数据库文件
+├── main.py                        # 主入口文件
 └── requirements.txt               # 依赖需求
 ```
 
@@ -190,12 +247,6 @@ backend/                           # 后端项目根目录
 - **`.env`文件**：存储环境相关的变量值。通过修改此文件来覆盖默认设置，而无需修改代码。
 
 - **`app/core/config.py`**：定义所有配置项的默认值，通过`Settings`类实现。该类使用`pydantic_settings`库将`.env`文件中的值自动加载并覆盖默认值。
-
-这种设计具有以下优势：
-1. 分离代码和配置，便于环境迁移
-2. 提供默认值，即使无`.env`文件也能正常运行
-3. 支持类型检查，避免配置错误导致的问题
-4. 集中管理所有配置，便于维护
 
 主要配置项包括：
 
@@ -210,21 +261,6 @@ backend/                           # 后端项目根目录
   - `LLM_SERVER_IP` 和 `LLM_SERVER_PORT`: 服务器模式下的连接信息
   - `LLM_SERVER_MODEL`: 服务器模式下使用的模型名称
 
-## 部署说明
-
-推荐使用 Docker 部署本系统：
-
-```bash
-# 构建并启动服务
-docker-compose up --build
-
-# 仅启动服务（不重新构建）
-docker-compose up
-
-# 在后台运行
-docker-compose up -d
-```
-
 ## 系统架构
 
 系统采用三层架构：
@@ -238,4 +274,8 @@ docker-compose up -d
 1. 文档上传并保存到数据库
 2. 创建提取任务，异步处理文档
 3. LLM 提取器分析文档内容并提取关键信息
-4. 提取结果保存到数据库并可被查询、导出或编辑 
+   - 多Agent架构协同工作完成信息提取
+   - 先识别状态组和状态，再提取具体值
+   - 最后验证结果完整性和合理性
+4. 提取结果保存到数据库并可被查询、导出或编辑
+
