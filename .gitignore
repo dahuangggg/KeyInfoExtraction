@@ -54,13 +54,8 @@ uploads/
 *.log
 config.env
 
-# 前端构建文件
-frontend/node_modules/
-frontend/dist/
-frontend/.cache/
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
+# 之前的前端
+frontend_bak
 
 # 敏感信息
 .env.local
