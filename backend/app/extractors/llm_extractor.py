@@ -15,7 +15,7 @@ import random
 import traceback
 import sys
 from .llm_service import LLMService
-from .multi_agent.coordinator import CoordinatorAgent
+from .multi_agent.coordinator_agent import CoordinatorAgent
 
 
 class LLMExtractor:
