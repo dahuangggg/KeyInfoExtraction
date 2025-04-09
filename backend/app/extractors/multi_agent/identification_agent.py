@@ -56,7 +56,7 @@ class IdentificationAgent:
         prompt = IDENTIFICATION_PROMPT + text
 
         # 限制文本长度，避免超出模型的处理能力
-        max_text_length = 12000  # 根据模型能力调整，避免超过模型的token限制
+        max_text_length = 20000  # 根据模型能力调整，避免超过模型的token限制
         if len(prompt) > max_text_length:
             raise ValueError(f"文本长度超出限制: 最大允许长度为{max_text_length}字符")
 
