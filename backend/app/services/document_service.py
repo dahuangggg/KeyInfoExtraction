@@ -180,4 +180,46 @@ class DocumentService:
             "success_count": success_count,
             "failed_count": failed_count,
             "failed_ids": failed_ids
-        } 
+        }
+
+    def get_document_content(self, document_id: int) -> dict:
+        """
+        获取文档的内容
+        
+        参数：
+            document_id: 文档ID
+            
+        返回：
+            包含文档内容的字典
+        """
+        document = self.get_document(document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="文档未找到")
+        
+        # 从文件名中获取唯一ID（去除扩展名）
+        filename_without_ext = os.path.splitext(document.filename)[0]
+        
+        # 构建可能的文件路径（_extracted.txt）
+        content_file_path = os.path.join(settings.OUTPUT_DIR, "temp", f"{filename_without_ext}_extracted.txt")
+        
+        # 检查文件是否存在
+        if not os.path.exists(content_file_path):
+            # 尝试其他可能的文件名格式
+            content_file_path = os.path.join(settings.OUTPUT_DIR, "temp", f"{document.original_filename.split('.')[0]}_extracted.txt")
+            
+        # 如果仍然找不到文件，返回错误
+        if not os.path.exists(content_file_path):
+            raise HTTPException(status_code=404, detail="文档内容文件未找到")
+            
+        # 读取文件内容
+        try:
+            with open(content_file_path, "r", encoding="utf-8") as file:
+                content = file.read()
+                
+            return {
+                "document_id": document_id,
+                "filename": document.original_filename,
+                "content": content
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"读取文档内容时出错: {str(e)}") 

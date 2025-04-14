@@ -85,6 +85,23 @@ document_id: 文档ID
 }
 ```
 
+### 获取文档内容： GET /api/v1/documents/content/{document_id}
+
+传入：
+```
+路径参数：
+document_id: 文档ID
+```
+
+返回：
+```json
+{
+    "document_id": 文档ID,
+    "filename": "原始文件名",
+    "content": "文档提取后的文本内容"
+}
+```
+
 ### 删除文档： DELETE /api/v1/documents/{document_id}
 
 传入：

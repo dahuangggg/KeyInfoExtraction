@@ -87,4 +87,19 @@ def batch_delete_documents(
     """
     document_service = DocumentService(db)
     result = document_service.batch_delete_documents(delete_request.document_ids)
-    return result 
+    return result
+
+
+@router.get("/content/{document_id}")
+def get_document_content(
+    document_id: int,
+    db: Session = Depends(get_db_session)
+):
+    """
+    获取文档内容
+    
+    根据文档ID从temp文件夹中获取对应的文档内容
+    """
+    document_service = DocumentService(db)
+    content = document_service.get_document_content(document_id)
+    return content 

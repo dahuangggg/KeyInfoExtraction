@@ -149,6 +149,7 @@ python backend/main.py --cli --file sample.docx --server_ip 127.0.0.1 --server_p
 - `POST /api/v1/documents` - 上传一个或多个文档
 - `GET /api/v1/documents` - 获取文档列表
 - `GET /api/v1/documents/{document_id}` - 获取文档详情
+- `GET /api/v1/documents/content/{document_id}` - 获取文档内容
 - `DELETE /api/v1/documents/{document_id}` - 删除文档及关联数据
 
 ### 信息提取
