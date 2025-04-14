@@ -53,7 +53,7 @@ class EditHistoryService:
     def edit_extraction_result(self, document_id: int, edit_data: Dict[str, Any], 
                              extraction_service=None) -> Dict[str, Any]:
         """
-        编辑提取结果并记录历史
+        编辑提取结果并记录历史 - 直接覆盖原有数据
         
         参数:
             document_id: 文档ID
@@ -68,109 +68,94 @@ class EditHistoryService:
         if not extraction_result:
             raise HTTPException(status_code=404, detail=f"文档ID {document_id} 的提取结果不存在")
 
-        # 处理编辑
+        # 记录完整的原始数据作为历史记录
+        old_data = json.loads(extraction_result.result_json)
+        
+        # 1. 首先查询需要删除的物理状态组
+        groups_to_delete = self.db.query(PhysicalStateGroup).filter(
+            PhysicalStateGroup.extraction_result_id == extraction_result.id
+        ).all()
+        
+        # 2. 删除每个组关联的物理状态项
+        for group in groups_to_delete:
+            self.db.query(PhysicalStateItem).filter(
+                PhysicalStateItem.physical_state_group_id == group.id
+            ).delete(synchronize_session=False)
+        
+        # 3. 删除物理状态组
+        self.db.query(PhysicalStateGroup).filter(
+            PhysicalStateGroup.extraction_result_id == extraction_result.id
+        ).delete(synchronize_session=False)
+        
+        # 4. 添加新的物理状态组和物理状态项
         if "groups" in edit_data:
-            for group_edit in edit_data["groups"]:
+            for group_idx, group_edit in enumerate(edit_data["groups"]):
                 group_name = group_edit.get("物理状态组")
                 
-                # 查找物理状态组
-                group = self.db.query(PhysicalStateGroup).filter(
-                    PhysicalStateGroup.group_name == group_name,
-                    PhysicalStateGroup.extraction_result_id == extraction_result.id
-                ).first()
+                # 创建新的物理状态组
+                group = PhysicalStateGroup(
+                    extraction_result_id=extraction_result.id,
+                    group_name=group_name
+                )
+                self.db.add(group)
+                self.db.flush()  # 获取ID
                 
-                # 如果组不存在，创建新组
-                if not group:
-                    group = PhysicalStateGroup(
-                        extraction_result_id=extraction_result.id,
-                        group_name=group_name
-                    )
-                    self.db.add(group)
-                    self.db.flush()  # 获取ID
-                
-                # 处理物理状态项编辑
+                # 添加物理状态项
                 if "物理状态项" in group_edit:
-                    for item_edit in group_edit["物理状态项"]:
+                    for item_idx, item_edit in enumerate(group_edit["物理状态项"]):
                         state_name = item_edit.get("物理状态名称")
                         
-                        # 查找物理状态项
-                        item = self.db.query(PhysicalStateItem).filter(
-                            PhysicalStateItem.state_name == state_name,
-                            PhysicalStateItem.physical_state_group_id == group.id
-                        ).first()
+                        # 创建新的物理状态项
+                        item = PhysicalStateItem(
+                            physical_state_group_id=group.id,
+                            state_name=state_name,
+                            state_value=item_edit.get("典型物理状态值", ""),
+                            prohibition_info=item_edit.get("禁限用信息", ""),
+                            test_comment=item_edit.get("测试评语", ""),
+                            test_project=item_edit.get("试验项目", "")
+                        )
+                        self.db.add(item)
+                        self.db.flush()  # 确保获取ID
                         
-                        # 如果项不存在，创建新项
-                        if not item:
-                            item = PhysicalStateItem(
-                                physical_state_group_id=group.id,
-                                state_name=state_name
-                            )
-                            self.db.add(item)
-                            self.db.flush()  # 获取ID
-                        
-                        # 编辑字段
-                        fields_map = {
+                        # 记录编辑历史 - 为每个字段创建一条记录
+                        field_map = {
                             "典型物理状态值": "state_value",
                             "禁限用信息": "prohibition_info",
                             "测试评语": "test_comment",
                             "试验项目": "test_project"
                         }
                         
-                        for display_name, field in fields_map.items():
-                            if display_name in item_edit:
-                                old_value = getattr(item, field)
-                                new_value = item_edit[display_name]
-                                
-                                if old_value != new_value:
-                                    # 记录编辑历史
-                                    self.record_edit(
-                                        document_id=document_id,
-                                        entity_type="PhysicalStateItem",
-                                        entity_id=item.id,
-                                        field_name=display_name,
-                                        old_value=old_value or "",
-                                        new_value=new_value or ""
-                                    )
-                                    
-                                    # 更新值
-                                    setattr(item, field, new_value)
+                        # 查找原始数据中对应的值
+                        old_value = {}
+                        if "元器件物理状态分析" in old_data:
+                            for old_group in old_data["元器件物理状态分析"]:
+                                if old_group.get("物理状态组") == group_name:
+                                    for old_item in old_group.get("物理状态项", []):
+                                        if old_item.get("物理状态名称") == state_name:
+                                            old_value = old_item
+                                            break
+                        
+                        # 记录编辑历史
+                        for field_display, field_db in field_map.items():
+                            new_val = item_edit.get(field_display, "")
+                            old_val = old_value.get(field_display, "") if old_value else ""
+                            
+                            if new_val != old_val:
+                                self.record_edit(
+                                    document_id=document_id,
+                                    entity_type="PhysicalStateItem",
+                                    entity_id=item.id,
+                                    field_name=field_display,
+                                    old_value=old_val,
+                                    new_value=new_val
+                                )
 
+        # 3. 直接更新result_json字段为新数据
+        extraction_result.result_json = json.dumps({"元器件物理状态分析": edit_data["groups"]}, ensure_ascii=False)
+        
         # 标记提取结果为已编辑
         extraction_result.is_edited = True
         extraction_result.last_edit_time = datetime.now()
-        
-        # 重新构建结构化数据，更新result_json字段
-        structured_info = {"元器件物理状态分析": []}
-        
-        # 查询所有物理状态组和项
-        groups = self.db.query(PhysicalStateGroup).filter(
-            PhysicalStateGroup.extraction_result_id == extraction_result.id
-        ).all()
-        
-        for group in groups:
-            group_info = {
-                "物理状态组": group.group_name,
-                "物理状态项": []
-            }
-            
-            items = self.db.query(PhysicalStateItem).filter(
-                PhysicalStateItem.physical_state_group_id == group.id
-            ).all()
-            
-            for item in items:
-                item_info = {
-                    "物理状态名称": item.state_name,
-                    "典型物理状态值": item.state_value,
-                    "禁限用信息": item.prohibition_info or "",
-                    "测试评语": item.test_comment or "",
-                    "试验项目": item.test_project or ""
-                }
-                group_info["物理状态项"].append(item_info)
-            
-            structured_info["元器件物理状态分析"].append(group_info)
-        
-        # 更新result_json字段
-        extraction_result.result_json = json.dumps(structured_info, ensure_ascii=False)
         
         # 提交更改
         self.db.commit()
