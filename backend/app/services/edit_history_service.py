@@ -112,7 +112,8 @@ class EditHistoryService:
                         fields_map = {
                             "典型物理状态值": "state_value",
                             "禁限用信息": "prohibition_info",
-                            "测试评语": "test_comment"
+                            "测试评语": "test_comment",
+                            "试验项目": "test_project"
                         }
                         
                         for display_name, field in fields_map.items():
@@ -161,7 +162,8 @@ class EditHistoryService:
                     "物理状态名称": item.state_name,
                     "典型物理状态值": item.state_value,
                     "禁限用信息": item.prohibition_info or "",
-                    "测试评语": item.test_comment or ""
+                    "测试评语": item.test_comment or "",
+                    "试验项目": item.test_project or ""
                 }
                 group_info["物理状态项"].append(item_info)
             
@@ -243,16 +245,21 @@ class EditHistoryService:
                     field_map = {
                         "典型物理状态值": "state_value",
                         "禁限用信息": "prohibition_info",
-                        "测试评语": "test_comment"
+                        "测试评语": "test_comment",
+                        "试验项目": "test_project"
                     }
                     
                     db_field = field_map.get(edit.field_name)
                     if db_field:
                         # 回溯为旧值
                         setattr(item, db_field, edit.old_value)
-            
-            # 后续可以添加其他实体类型的回溯逻辑
         
+        # 删除目标历史记录及其之后的所有历史记录
+        self.db.query(EditHistory).filter(
+            EditHistory.document_id == document_id,
+            EditHistory.edit_time >= target_history.edit_time
+        ).delete()
+            
         # 标记提取结果为已编辑和回溯状态
         extraction_result.is_edited = True
         extraction_result.last_edit_time = datetime.now()
@@ -280,7 +287,8 @@ class EditHistoryService:
                     "物理状态名称": item.state_name,
                     "典型物理状态值": item.state_value,
                     "禁限用信息": item.prohibition_info or "",
-                    "测试评语": item.test_comment or ""
+                    "测试评语": item.test_comment or "",
+                    "试验项目": item.test_project or ""
                 }
                 group_info["物理状态项"].append(item_info)
             
@@ -288,16 +296,6 @@ class EditHistoryService:
         
         # 更新result_json字段
         extraction_result.result_json = json.dumps(structured_info, ensure_ascii=False)
-        
-        # 记录回溯操作本身的历史
-        self.record_edit(
-            document_id=document_id,
-            entity_type="System",
-            entity_id=0,
-            field_name="回溯操作",
-            old_value="",
-            new_value=f"回溯到历史点 {history_id}"
-        )
         
         # 提交更改
         self.db.commit()
