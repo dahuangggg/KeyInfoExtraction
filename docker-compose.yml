@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_data:/app/data
+      - backend_db:/app/db
+      - backend_logs:/app/logs
+    environment:
+      - SQLALCHEMY_DATABASE_URI=sqlite:///db/key_info_extraction.db
+      - UPLOAD_DIR=/app/data/uploads
+      - OUTPUT_DIR=/app/data/output
+      - LLM_MODE=api
+      - LLM_API_KEY=your_api_key_here
+      - LLM_MODEL=gpt-3.5-turbo
+      - DEBUG=false
+    networks:
+      - app-network
+
+volumes:
+  backend_data:
+  backend_db:
+  backend_logs:
+
+networks:
+  app-network:
+    driver: bridge
