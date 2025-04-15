@@ -1,18 +1,22 @@
 # Web框架
-fastapi>=0.95.0
-uvicorn>=0.22.0
+fastapi>=0.103.0
+uvicorn>=0.23.2
 python-multipart>=0.0.6  # 用于处理文件上传
 starlette>=0.27.0
-pydantic>=1.10.7
+pydantic>=2.3.0
+pydantic-settings>=2.0.3  # 新增：支持配置管理
 
 # 数据库
-sqlalchemy>=2.0.0
-alembic>=1.10.0  # 数据库迁移工具
+sqlalchemy>=2.0.20
+psycopg2-binary>=2.9.7
+alembic>=1.12.0
 pymysql>=1.1.0  # MySQL驱动
 cryptography>=41.0.0  # MySQL加密支持
 
 # 文档处理
 python-docx>=0.8.11  # 处理docx文件
+docx2txt>=0.8  # docx文本提取
+textract>=1.6.5  # 多种格式文档文本提取
 pywin32>=306; sys_platform == 'win32'  # Windows平台处理doc文件
 # antiword>=0.3.0; sys_platform != 'win32'  # 非Windows平台处理doc文件 - 已通过Homebrew安装
 
@@ -21,13 +25,13 @@ jieba>=0.42.1  # 中文分词
 transformers>=4.28.0  # Hugging Face Transformers
 torch>=2.0.0  # PyTorch
 numpy>=1.24.0
-pandas>=2.0.0
+pandas>=2.1.0
 
 # LLM集成
 openai>=0.27.0  # OpenAI API
 
 # 数据导出
-openpyxl>=3.1.0  # Excel导出
+openpyxl>=3.1.2  # Excel导出
 xlsxwriter>=3.0.0  # Excel导出增强
 
 # 工具
@@ -35,9 +39,13 @@ python-dotenv>=1.0.0  # 环境变量管理
 requests>=2.28.0
 tqdm>=4.65.0  # 进度条
 tenacity>=8.2.0  # 重试机制
+python-jose>=3.3.0  # JWT支持
+passlib>=1.7.4  # 密码哈希
+bcrypt>=4.0.1  # 密码加密
+aiohttp>=3.8.5  # 异步HTTP客户端
 
 # 测试
-pytest>=7.3.0
-httpx>=0.24.0  # 异步HTTP客户端，用于测试 
+pytest>=7.4.0
+httpx>=0.24.1  # 异步HTTP客户端，用于测试 
 
 

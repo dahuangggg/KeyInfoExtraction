@@ -81,6 +81,7 @@
 
 - Python 3.8+
 - 支持Windows/Linux/macOS系统
+- LibreOffice (用于文档处理)
 
 ### 安装步骤
 
@@ -312,3 +313,41 @@ backend/                           # 后端项目根目录
    - 最后验证结果完整性和合理性
 4. 提取结果保存到数据库并可被查询、导出或编辑
 
+## 快速开始
+
+### 使用Docker (推荐)
+
+```bash
+# 构建和启动服务
+docker-compose up -d
+
+# 检查服务状态
+docker-compose ps
+
+### 手动安装
+
+1. 安装系统依赖
+
+```bash
+# Debian/Ubuntu
+apt-get update && apt-get install -y --no-install-recommends \
+    libreoffice \
+    libreoffice-writer \
+    antiword \
+    poppler-utils \
+    tesseract-ocr \
+    fonts-wqy-microhei \
+    fonts-wqy-zenhei
+```
+
+2. 安装Python依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+3. 运行应用
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
