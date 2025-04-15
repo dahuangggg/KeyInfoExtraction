@@ -40,7 +40,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/KeyInfoExtraction.git
+git clone https://github.com/dahuangggg/KeyInfoExtraction.git
 cd KeyInfoExtraction
 
 # 安装后端依赖
