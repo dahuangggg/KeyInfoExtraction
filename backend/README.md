@@ -4,13 +4,6 @@
 
 本项目是一个基于大型语言模型（LLM）的专业文档关键要素自动识别和提取系统的后端部分。系统能够自动分析文档内容，识别并提取物理状态相关的关键信息，并提供编辑、存储和导出功能。采用FastAPI和SQLAlchemy构建，具有高性能、可扩展的特点。
 
-### 主要目标
-
-- 减少手动提取文档关键信息的工作量
-- 提高信息提取的一致性和准确性
-- 建立专业领域的知识库，辅助后续提取任务
-- 提供友好的用户界面进行数据管理和编辑
-
 ## 功能特性
 
 - **文档管理**：支持单个或批量 Word 文档（.doc/.docx）上传、预览和管理
@@ -102,7 +95,7 @@
 
 3. 安装依赖
    ```bash
-   pip install -r backend/requirements.txt
+   pip install -r requirements.txt
    ```
 
 4. 配置环境变量（可选）
@@ -112,7 +105,6 @@
 ### 运行服务器
 
 ```bash
-cd backend
 python main.py
 ```
 
@@ -159,13 +151,13 @@ python main.py --help
 
 ```bash
 # 处理单个文件
-python backend/main.py --cli --file sample.docx
+python main.py --cli --file sample.docx
 
 # 批量处理目录内的文档并导出为Excel格式
-python backend/main.py --cli --dir ./documents --format excel
+python main.py --cli --dir ./documents --format excel
 
 # 使用自定义LLM服务器
-python backend/main.py --cli --file sample.docx --server_ip 127.0.0.1 --server_port 8080 --model_name gpt-4 --use_local_api
+python main.py --cli --file sample.docx --server_ip 127.0.0.1 --server_port 8080 --model_name gpt-4 --use_local_api
 ```
 
 ## API 文档
@@ -315,7 +307,7 @@ backend/                           # 后端项目根目录
 
 ## 快速开始
 
-### 使用Docker (推荐)
+### 使用Docker
 
 ```bash
 # 构建和启动服务
@@ -323,6 +315,7 @@ docker-compose up -d
 
 # 检查服务状态
 docker-compose ps
+```
 
 ### 手动安装
 
