@@ -4,7 +4,7 @@ import jieba.posseg as pseg
 import os
 import json
 from typing import Dict, List, Tuple, Any, Optional, Set
-import torch
+# import torch
 from transformers import AutoTokenizer, AutoModelForTokenClassification, AutoModelForSequenceClassification
 from transformers import pipeline
 

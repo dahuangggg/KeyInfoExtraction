@@ -30,24 +30,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 设置LibreOffice路径
 ENV PATH="/usr/lib/libreoffice/program:${PATH}"
 
-# 验证LibreOffice安装
-RUN libreoffice --version || echo "LibreOffice 安装可能有问题，请检查"
+# 创建必要的目录
+RUN mkdir -p /app/data/uploads /app/data/output /app/logs
 
-# 安装Python文档处理库
-RUN pip install --no-cache-dir textract python-docx docx2txt
-
-# 复制项目文件
-COPY . /app/
+# 首先复制依赖文件，利用Docker缓存
+COPY requirements.txt /app/
 
 # 安装Python依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 创建必要的目录并设置权限
-RUN mkdir -p /app/data/uploads /app/data/output \
-    && chmod -R 777 /app/data
+# 复制项目文件
+COPY . /app/
+
+# 设置目录权限
+RUN chmod -R 777 /app/data /app/logs
 
 # 暴露应用端口
 EXPOSE 8000
 
-# 运行应用
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+# 设置启动命令
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
