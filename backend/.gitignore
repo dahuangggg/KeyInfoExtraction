@@ -1,9 +1,13 @@
+# 环境变量文件
+.env
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+env/
 build/
 develop-eggs/
 dist/
@@ -21,31 +25,37 @@ wheels/
 *.egg
 
 # 虚拟环境
-.env
 venv/
 ENV/
+.env/
 
-# IDE
+# 上传和输出数据目录
+data/uploads/
+data/output/
+output/
+uploads/
+
+# 日志文件
+logs/
+*.log
+
+# 数据库文件
+*.db
+*.sqlite3
+
+# IDE和编辑器
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 
-# 操作系统
+# 系统文件
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
 # 项目特定
-uploads/
-output/
 tests/
-*.db
-*.sqlite3
 *.docx
 *.doc
 *.pdf
