@@ -27,7 +27,7 @@ var/
 # 虚拟环境
 venv/
 ENV/
-.env
+.env.example
 .venv
 
 # 数据文件
